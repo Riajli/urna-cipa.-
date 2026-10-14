@@ -739,8 +739,10 @@ function makeDemo() {
       if (conf !== 'REINICIAR') throw new Error('Digite REINICIAR para confirmar.');
       if (!['configuracao', 'encerrada'].includes(E.status)) throw new Error('Não é possível reiniciar com a eleição em andamento.');
       S.votos = []; S.prorrogacoes = []; S.eleitores = []; S.candidatos = []; S.log = [];
+      S.equipe = S.equipe.filter(x => x.perfil === 'admin'); Object.keys(S.sess).forEach(k => { if (!S.equipe.some(x => x.id === S.sess[k].id)) delete S.sess[k]; });
+      S.config = { cadastrada_em: null, cadastrada_por: null, empresa: 'Nome da empresa', cnpj: '', endereco: '', titulo: 'Eleição da CIPA', gestao: '', logo: null, cor: '#0f6b4f', url_site: '', vagas_titulares: 1, vagas_suplentes: 1, duracao_horas: 24, confirmacoes_necessarias: 3, situacoes_aptas: [] };
       S.eleicao = { status: 'configuracao', fase: 1, inicio: null, fim: null, aberta_em: null, encerrada_em: null, encerrada_por: null, codigos_gerados_em: null, encerramento_tipo: 'normal', justificativa: null };
-      log(m.nome, 'Sistema reiniciado', 'Dados da eleição anterior apagados.'); save(); return { ok: true };
+      log(m.nome, 'Sistema reiniciado', 'Empresa, equipe (exceto administradores) e dados da eleição anterior apagados.'); save(); return { ok: true };
     }
   };
 
@@ -932,7 +934,7 @@ function bindInicio() {
     const b = $('#v-entrar'); b.disabled = true; b.textContent = 'Conferindo…';
     try {
       const r = await API.eleitorEntrar(mat, nasc, cod);
-      if (!A.cands) A.cands = await API.candidatos();
+      A.cands = await API.candidatos(); // sempre a lista atual: evita cédula antiga depois de reiniciar a eleição
       A.voto = { step: 'cedula', token: r.token, nome: r.nome, escolha: null, desde: Date.now() };
       renderEleitor(); window.scrollTo(0, 0);
     } catch (e) { err.textContent = e.message; err.hidden = false; b.disabled = false; b.textContent = 'Entrar e votar'; }
@@ -980,6 +982,10 @@ function bindCedula() {
       await API.votar(A.voto.token, A.voto.escolha);
       A.voto = { step: 'fim', token: null, nome: '', escolha: null }; renderEleitor(); window.scrollTo(0, 0);
     } catch (e) {
+      if (/Opção de voto inválida/.test(e.message)) { // lista de candidatos mudou: recarrega a cédula
+        try { A.cands = await API.candidatos(); } catch (e2) { /* sem conexão */ }
+        A.voto.escolha = null; renderEleitor(); toast('A lista de candidatos foi atualizada. Escolha novamente.'); return;
+      }
       toast(e.message); b.textContent = 'CONFIRMA'; b.disabled = false;
       if (/sessão|terminou|já foi/i.test(e.message)) { A.voto = { step: 'login', token: null, nome: '', escolha: null }; await carregarEstado().catch(() => {}); renderEleitor(); }
     }
@@ -1545,9 +1551,9 @@ function abaConta() {
       <div class="field"><label for="f-just">Justificativa</label><textarea class="input" id="f-just" rows="3" placeholder="Ex.: decisão da comissão eleitoral em reunião de 14/10, registrada em ata própria."></textarea></div>
       <div class="field"><label for="f-conf">Digite ENCERRAR para confirmar</label><input class="input" id="f-conf" autocomplete="off"></div>
       <div><button class="btn danger" id="b-forcar">Encerrar eleição agora</button></div></div>` : ''}
-    ${P.perfil === 'admin' ? `<div class="card stack"><h3>Reiniciar para uma nova eleição</h3>
-      <p class="small muted">Apaga eleitores, candidatos, votos e o registro. Mantém os dados da empresa e a equipe. Baixe a ata antes: ela é o documento a ser arquivado.</p>
-      ${podeReiniciar ? `<div class="field"><label for="r-conf">Digite REINICIAR para confirmar</label><input class="input" id="r-conf" autocomplete="off"></div><div><button class="btn danger" id="b-reiniciar">Apagar dados da eleição</button></div>`
+    ${P.perfil === 'admin' ? `<div class="card stack"><h3>Reiniciar para um novo cliente</h3>
+      <p class="small muted">Apaga <b>tudo</b>: dados da empresa (razão social, CNPJ, logo, cor e regras), presidente e membros da comissão eleitoral, eleitores, candidatos, votos e o registro. Só os acessos de administrador continuam. Não há como desfazer: baixe e guarde as duas atas antes.</p>
+      ${podeReiniciar ? `<div class="field"><label for="r-conf">Digite REINICIAR para confirmar</label><input class="input" id="r-conf" autocomplete="off"></div><div><button class="btn danger" id="b-reiniciar">Apagar tudo e começar do zero</button></div>`
         : `<div class="msg info">Disponível antes da abertura ou depois do encerramento.</div>`}</div>` : ''}
   </div>`;
   $('#f-senha').addEventListener('submit', async ev => { ev.preventDefault(); try { await API.trocarSenha(A.staff.token, $('#p-atual').value, $('#p-nova').value); toast('Senha alterada.'); $('#p-atual').value = ''; $('#p-nova').value = ''; } catch (e) { toast(e.message); } });
@@ -1556,7 +1562,7 @@ function abaConta() {
     try { await API.encerrarForcado(A.staff.token, $('#f-conf').value.trim(), $('#f-just').value); toast('Eleição encerrada administrativamente.'); A.tab = 'resultado'; await atualizarPainel(true); }
     catch (e) { toast(e.message); bfz.disabled = false; }
   };
-  const br = $('#b-reiniciar'); if (br) br.onclick = async () => { try { await API.reiniciar(A.staff.token, $('#r-conf').value.trim()); toast('Dados apagados. Pronto para uma nova eleição.'); A.codigos = null; A.tab = 'acomp'; await atualizarPainel(true); } catch (e) { toast(e.message); } };
+  const br = $('#b-reiniciar'); if (br) br.onclick = async () => { try { await API.reiniciar(A.staff.token, $('#r-conf').value.trim()); toast('Tudo apagado. Comece cadastrando a nova empresa.'); A.codigos = null; A.cands = null; A.tab = 'empresa'; await atualizarPainel(true); aplicarMarca(A.painel.config); } catch (e) { toast(e.message); } };
 }
 
 /* =====================================================================
