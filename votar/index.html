@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 </head>
 <body>
-<title>CIPAFLOW</title>
+<title>CipaFlow - Votação</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=JetBrains+Mono:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap">
@@ -66,6 +66,11 @@ textarea.input{resize:vertical}
 .navbtn.on{box-shadow:0 0 0 3px rgba(255,255,255,.35)}
 .navbtn:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .navbtn .sm{display:none}
+.navbtn.cf{background:#fff;border-color:#fff;color:#13211b;text-decoration:none;gap:8px}
+.navbtn.cf:hover{background:#eef2ee}
+.navbtn.cf svg{width:22px;height:22px}
+.navbtn.cf .cfw{font-family:var(--f-display);font-stretch:88%;font-weight:800;font-size:1.08rem;letter-spacing:-.01em}
+.navbtn.cf .cfw b{color:#0f6b4f;font-weight:800}
 @media (max-width:640px){
   .mast .wrap{flex-wrap:wrap;padding-block:10px;gap:10px}
   .mast-logo{width:42px;height:42px}.mast-logo img{max-width:34px;max-height:34px}
@@ -859,6 +864,7 @@ function mast(cfg, nav) {
   const sub = [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao].filter(Boolean).join(' · ');
   const atual = A.view;
   const links = nav ? `<nav class="mast-nav" aria-label="Acessos">
+      <a class="navbtn cf" href="https://www.cipaflow.com.br/" aria-label="CipaFlow, página inicial"><svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1.5" y="1.5" width="27" height="27" rx="4" fill="none" stroke="#0f6b4f" stroke-width="2.5"></rect><path d="M8.5 15.5l4.5 4.5 9-10" fill="none" stroke="#0f6b4f" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="cfw">cipa<b>flow</b></span></a>
       <button type="button" class="navbtn solid${atual === 'equipe-login' ? ' on' : ''}" id="go-equipe" ${atual === 'equipe-login' ? 'aria-current="page"' : ''}>${ICON.comissao}<span class="lg">Acesso da comissão eleitoral</span><span class="sm">Comissão eleitoral</span></button>
     </nav>` : '';
   return `<header class="mast"><div class="wrap"><button type="button" class="mast-home" id="go-home" ${nav ? '' : 'tabindex="-1" disabled'} aria-label="Página inicial da votação">${logo}<div class="mast-txt"><div class="mast-emp">${esc(cfg.empresa || '')}</div><div class="mast-tit">${esc(sub)}</div></div></button>${links}</div></header>`;
