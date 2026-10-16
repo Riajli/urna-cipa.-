@@ -1,0 +1,1889 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+</head>
+<body>
+<title>Urna CIPA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=JetBrains+Mono:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Tema único claro (sem modo escuro). Layout: faixa da empresa no topo, coluna única para o eleitor (pensada para celular),
+   painel em grade para a comissão. Teclas CONFIRMA / CORRIGE / BRANCO seguem a urna brasileira. */
+:root{
+  --bg:#eef2ee; --surface:#ffffff; --surface-2:#e4ebe5; --fg:#13211b; --muted:#56675f; --line:#cfd9d2;
+  --brand:#0f6b4f; --on-brand:#ffffff; --brand-ink:var(--brand);
+  --attn-bg:#fdf1c7; --attn-ink:#5a4300; --attn-line:#e9c64a;
+  --ok-bg:#dcf1e3; --ok-ink:#145c33; --info-bg:#dfe9f6; --info-ink:#1d4f84; --bad-bg:#fbe3e0; --bad-ink:#9c2219;
+  --fill-danger:#b3261e; --key-branco:#f6f6f0; --key-corrige:#e8792b; --key-confirma:#1f8a4c;
+  --shadow:0 1px 2px rgba(19,33,27,.06),0 6px 20px rgba(19,33,27,.06);
+  --f-display:'Archivo','Arial Narrow',Arial,sans-serif;
+  --f-body:'Source Sans 3','Segoe UI',Roboto,Arial,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+:root,:root[data-theme="dark"]{color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--f-display);font-stretch:88%;line-height:1.15;margin:0;text-wrap:balance}
+h1{font-size:clamp(1.6rem,4vw,2.1rem);font-weight:800}
+h2{font-size:1.3rem;font-weight:750}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+textarea.input{resize:vertical}
+:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 60%,transparent);outline-offset:2px}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px}
+.narrow{max-width:640px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+.eyebrow{font-family:var(--f-display);font-size:.75rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--f-mono)}
+.num{font-variant-numeric:tabular-nums}
+
+/* faixa da empresa */
+.mast{background:var(--brand);color:var(--on-brand)}
+.mast .wrap{display:flex;align-items:center;gap:14px;padding-block:14px}
+.mast-logo{width:52px;height:52px;border-radius:10px;background:#fff;display:grid;place-items:center;overflow:hidden;flex:none}
+.mast-logo img{max-width:44px;max-height:44px;object-fit:contain}
+.mast-emp{font-family:var(--f-display);font-weight:750;font-size:1.1rem;font-stretch:90%;line-height:1.2}
+.mast-tit{opacity:.85;font-size:.92rem}
+.mast-txt{min-width:0}
+.mast-home{display:flex;align-items:center;gap:14px;background:none;border:0;padding:0;color:inherit;text-align:left;cursor:pointer;min-width:0}
+.mast-home:disabled{cursor:default}
+.mast-nav{margin-left:auto;display:flex;gap:10px;align-items:center}
+.navbtn{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 16px;border-radius:999px;border:1.5px solid rgba(255,255,255,.6);background:transparent;color:#fff;font-weight:700;font-size:.92rem;cursor:pointer;white-space:nowrap;transition:background .15s,transform .15s}
+.navbtn:hover{background:rgba(255,255,255,.14)}
+.navbtn:active{transform:translateY(1px)}
+.navbtn svg{width:18px;height:18px;flex:none}
+.navbtn.solid{background:#fff;color:var(--brand);border-color:#fff}
+.navbtn.solid:hover{background:#eef2ee}
+.navbtn.on{box-shadow:0 0 0 3px rgba(255,255,255,.35)}
+.navbtn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.navbtn .sm{display:none}
+@media (max-width:640px){
+  .mast .wrap{flex-wrap:wrap;padding-block:10px;gap:10px}
+  .mast-logo{width:42px;height:42px}.mast-logo img{max-width:34px;max-height:34px}
+  .mast-emp{font-size:1rem}.mast-tit{font-size:.82rem}
+  .mast-nav{width:100%;margin-left:0}
+  .navbtn{flex:1;justify-content:center;min-height:40px;padding:0 10px;font-size:.88rem}
+  .navbtn .lg{display:none}.navbtn .sm{display:inline}
+}
+/* tela inicial: cabe numa tela, sem rolagem */
+.start{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(24px,5vw,72px);align-items:center;min-height:calc(100vh - 96px);padding-block:20px;max-width:1120px}
+.start-intro{display:flex;flex-direction:column;gap:14px;min-width:0}
+.start-intro h1{font-size:clamp(2rem,3.6vw,3rem);line-height:1.05}
+.start-intro .status-line{margin:0}
+.lead{font-size:1.08rem;max-width:46ch}
+.passos{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.passos li{display:flex;gap:12px;align-items:center}
+.passos li>b{flex:none;width:30px;height:30px;border-radius:50%;background:var(--surface);border:1.5px solid var(--line);display:grid;place-items:center;font-family:var(--f-display);font-size:.9rem}
+.passos .kc{display:inline-block;padding:0 6px;border-radius:4px;background:var(--key-confirma);color:#fff;font-family:var(--f-display);font-size:.8rem;letter-spacing:.05em}
+.start-form{padding:24px}
+.start-form .stack{gap:14px}
+@media (max-width:860px){
+  .start{grid-template-columns:1fr;min-height:0;gap:14px;padding-block:14px 16px;align-items:start}
+  .start-intro{gap:8px}
+  .start-intro h1{font-size:1.5rem}
+  .lead{font-size:.95rem}
+  .passos{display:none}
+  .start-form{padding:18px}
+  .start-form .stack{gap:12px}
+  .start-form .input{padding:10px 12px}
+}
+
+/* cartões e formulários */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);min-width:0}
+.card.flat{box-shadow:none}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label{font-weight:600;font-size:.92rem}
+.field .hint{font-size:.82rem;color:var(--muted)}
+.input{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);font-size:1rem}
+.input:focus{border-color:var(--brand);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent)}
+.input.code{font-family:var(--f-mono);font-size:1.35rem;letter-spacing:.12em;text-transform:uppercase}
+.input:disabled{opacity:.6}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border-radius:8px;border:1.5px solid transparent;background:var(--brand);color:var(--on-brand);font-weight:700;cursor:pointer;text-decoration:none;min-height:44px}
+.btn:hover{filter:brightness(1.07)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.danger{background:var(--fill-danger);color:#fff}
+.btn.attn{background:#f2c230;color:#2b2000}
+.btn.big{padding:14px 22px;font-size:1.05rem;width:100%}
+.btn.armed{background:var(--fill-danger);color:#fff;border-color:transparent}
+.linkbtn{background:none;border:0;padding:4px 0;color:var(--brand-ink);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.msg{padding:12px 14px;border-radius:8px;font-size:.95rem;border:1px solid transparent}
+.msg.err{background:var(--bad-bg);color:var(--bad-ink)}
+.msg.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.msg.attn{background:var(--attn-bg);color:var(--attn-ink);border-color:var(--attn-line)}
+.msg.info{background:var(--info-bg);color:var(--info-ink)}
+
+/* status */
+.pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:99px;font-size:.82rem;font-weight:700;white-space:nowrap}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.s-configuracao{background:var(--surface-2);color:var(--muted)}
+.s-aberta{background:var(--ok-bg);color:var(--ok-ink)}
+.s-aguardando_prorrogacao{background:var(--attn-bg);color:var(--attn-ink)}
+.s-aguardando_encerramento{background:var(--info-bg);color:var(--info-ink)}
+.s-encerrada{background:var(--surface-2);color:var(--fg)}
+
+/* eleitor */
+.voter{padding-block:24px 120px}
+.status-line{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:16px}
+.foot{padding-block:8px 32px;display:flex;justify-content:center}
+.cand-grid{--cw:180px;--cols:5;display:flex;flex-wrap:wrap;justify-content:center;gap:14px;max-width:min(100%,calc(var(--cw) * var(--cols) + 14px * (var(--cols) - 1)));margin-inline:auto}
+.cand-grid.poucos{--cw:220px}
+.cand-grid.muitos{--cw:156px}
+.cand{flex:0 1 var(--cw);width:var(--cw);position:relative;display:flex;flex-direction:column;text-align:left;padding:0;border:2px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;overflow:hidden;min-width:0}
+.cand img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:var(--surface-2)}
+.cand .ph{width:100%;aspect-ratio:1;display:grid;place-items:center;background:var(--surface-2);font-family:var(--f-display);font-size:2.4rem;font-weight:800;color:var(--muted)}
+.cand .cb{padding:10px 12px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.cand .ap{font-family:var(--f-display);font-weight:800;font-size:1.15rem;font-stretch:88%;line-height:1.15;overflow-wrap:anywhere}
+.cand .nm{font-size:.85rem;color:var(--muted);line-height:1.3;overflow-wrap:anywhere}
+.cand .st{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--brand-ink);margin-top:4px}
+@media (max-width:560px){.cand-grid,.cand-grid.poucos,.cand-grid.muitos{--cw:calc(50% - 7px);max-width:100%}}
+.cand[aria-pressed="true"]{border-color:var(--key-confirma);box-shadow:0 0 0 3px color-mix(in srgb,var(--key-confirma) 35%,transparent)}
+.cand[aria-pressed="true"]::after{content:"✓";position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:var(--key-confirma);color:#fff;display:grid;place-items:center;font-weight:800;font-size:1.1rem}
+.urna-bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 24px rgba(0,0,0,.08);padding-bottom:env(safe-area-inset-bottom,0px);z-index:20}
+.urna-bar .wrap{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding-block:12px}
+.escolha{min-width:0;flex:1 1 220px}
+.escolha strong{font-family:var(--f-display);font-size:1.2rem;font-stretch:88%;display:block;overflow-wrap:anywhere}
+.keys{display:flex;gap:8px;flex:1 1 320px}
+.key{flex:1;min-height:52px;border-radius:8px;border:1.5px solid rgba(0,0,0,.18);font-family:var(--f-display);font-weight:800;letter-spacing:.06em;font-size:.95rem;cursor:pointer;color:#1a1a1a}
+.key.branco{background:var(--key-branco)}
+.key.corrige{background:var(--key-corrige)}
+.key.confirma{background:var(--key-confirma);color:#fff;flex:1.4}
+.key:disabled{opacity:.4;cursor:not-allowed}
+.fim{min-height:60vh;display:grid;place-items:center;text-align:center}
+.fim-word{font-family:var(--f-display);font-size:clamp(5rem,22vw,9rem);font-weight:800;font-stretch:80%;line-height:1;color:var(--fg);letter-spacing:.04em}
+
+/* painel */
+.staffbar{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:10}
+.staffbar .wrap{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding-block:10px}
+.staffbar .who{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.role{font-family:var(--f-display);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:var(--brand);color:var(--on-brand)}
+.tabs{display:flex;gap:4px;overflow-x:auto;padding-block:12px 0;scrollbar-width:thin}
+.tab{padding:9px 14px;border:0;border-bottom:3px solid transparent;background:none;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--brand)}
+.tabrule{border:0;border-top:1px solid var(--line);margin:0}
+.painel{padding-block:20px 80px}
+.over{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+@media (max-width:820px){.over{grid-template-columns:1fr}}
+.g-num{font-family:var(--f-display);font-weight:800;font-stretch:82%;font-size:clamp(3rem,9vw,4.4rem);line-height:1;font-variant-numeric:tabular-nums}
+.g-num small{font-family:var(--f-body);font-size:1rem;font-weight:600;color:var(--muted);margin-left:8px;font-stretch:100%}
+.g-bar{position:relative;height:18px;border-radius:99px;background:var(--surface-2);margin:28px 0 14px}
+.g-fill{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--brand);transition:width .6s}
+.g-meta{position:absolute;top:-24px;bottom:-4px;width:0;border-left:2px dashed var(--fg)}
+.g-meta span{position:absolute;top:0;left:6px;font-size:.75rem;font-weight:700;white-space:nowrap}
+.g-meta.right span{left:auto;right:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin:0}
+.stats div{background:var(--surface-2);border-radius:8px;padding:10px 12px}
+.stats dt{font-size:.78rem;color:var(--muted);font-weight:600}
+.stats dd{margin:0;font-family:var(--f-display);font-weight:750;font-size:1.35rem;font-variant-numeric:tabular-nums}
+.check{display:flex;gap:10px;align-items:flex-start;padding:7px 0}
+.check i{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:.8rem;font-weight:800;margin-top:1px}
+.check.ok i{background:var(--ok-bg);color:var(--ok-ink)}
+.check.no i{background:var(--bad-bg);color:var(--bad-ink)}
+.confs{display:flex;gap:6px;margin:10px 0}
+.confs span{flex:1;height:10px;border-radius:99px;background:var(--surface-2)}
+.confs span.on{background:var(--key-confirma)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table.tbl{width:100%;border-collapse:collapse;font-size:.92rem}
+.tbl th{text-align:left;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);padding:9px 12px;white-space:nowrap}
+.tbl td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:middle}
+.tbl td.r,.tbl th.r{text-align:right}
+.tbl tr.win td{background:color-mix(in srgb,var(--key-confirma) 10%,transparent)}
+.thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;display:block;background:var(--surface-2)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.75rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.tag.tit{background:var(--key-confirma);color:#fff}
+.tag.sup{background:var(--info-bg);color:var(--info-ink)}
+.ccards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.ccard{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);min-width:0}
+.ccard img,.ccard .ph{width:64px;height:64px;border-radius:8px;object-fit:cover;flex:none;background:var(--surface-2)}
+.ccard .ph{display:grid;place-items:center;font-weight:800;color:var(--muted)}
+.ccard .t{min-width:0;flex:1}
+.ccard .t b{display:block;font-family:var(--f-display);font-stretch:88%;font-size:1.05rem;overflow-wrap:anywhere}
+.newcode{font-family:var(--f-mono);font-weight:700;font-size:clamp(2rem,8vw,3rem);letter-spacing:.08em;text-align:center;padding:16px;border:2px dashed var(--line);border-radius:10px;background:var(--surface-2)}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:460px;margin:0 auto;z-index:60;padding:12px 16px;border-radius:8px;background:var(--fg);color:var(--bg);font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.sitlist{display:flex;flex-wrap:wrap;gap:8px}
+.sitlist label{display:flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
+.preview-mast{border-radius:10px;overflow:hidden}
+
+/* barra de demonstração */
+.demo-band{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40}
+.demo-band .btn{background:#f2c230;color:#2b2000;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+body.has-urna .demo-band{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+.drawer{position:fixed;inset:0;z-index:50;background:rgba(10,16,13,.5);display:flex;justify-content:flex-end}
+.drawer-in{width:min(460px,100%);height:100%;overflow-y:auto;background:var(--bg);padding:20px 16px 40px;display:flex;flex-direction:column;gap:16px}
+.cred td{font-family:var(--f-mono);font-size:.85rem}
+@media (max-width:560px){.hide-sm{display:none}.demo-band .btn{min-height:38px;padding:6px 12px;font-size:.85rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="app"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   CONFIGURAÇÃO DO CLIENTE
+   Deixe em branco para rodar em MODO DEMONSTRAÇÃO (dados fictícios).
+   Para uma eleição real, cole a URL e a chave "anon public" do Supabase.
+   ===================================================================== */
+const CONFIG = {
+  SUPABASE_URL: 'https://cdyummugdvipgplbkftq.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_3yXXkA01XgHQavktUXSwGA_Ww9DUqAD'
+};
+
+const DEMO = !CONFIG.SUPABASE_URL;
+const TZ = 'America/Sao_Paulo';
+const LIB = {
+  jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+};
+
+/* ---------------- utilitários ---------------- */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clone = x => JSON.parse(JSON.stringify(x));
+const loaded = {};
+function loadScript(u) {
+  if (!loaded[u]) loaded[u] = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = u; s.onload = res;
+    s.onerror = () => { delete loaded[u]; rej(new Error('Não foi possível carregar um componente. Verifique a internet e tente de novo.')); };
+    document.head.appendChild(s);
+  });
+  return loaded[u];
+}
+const fmtDT = iso => iso ? new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso)) : '—';
+const fmtD = d => d ? String(d).slice(0, 10).split('-').reverse().join('/') : '—';
+const pctN = (a, b) => b ? 100 * a / b : 0;
+const fmtPct = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+const faseNome = f => f === 1 ? '1º período' : 'Prorrogação ' + (f - 1);
+const primeiroNome = n => String(n || '').trim().split(/\s+/)[0] || '';
+const normNome = n => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const iniciais = n => String(n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+function dur(ms) {
+  if (ms <= 0) return 'encerrado';
+  const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60);
+  if (h >= 1) return `${h}h ${String(m % 60).padStart(2, '0')}min`;
+  return `${m}min ${String(s % 60).padStart(2, '0')}s`;
+}
+function parseDataBR(s) {
+  const m = String(s || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const d = +m[1], mo = +m[2], y = +m[3];
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d || y < 1900) return null;
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+function mascaraData(el) {
+  el.addEventListener('input', () => {
+    const v = el.value.replace(/\D/g, '').slice(0, 8);
+    el.value = v.length > 4 ? `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}` : v.length > 2 ? `${v.slice(0, 2)}/${v.slice(2)}` : v;
+  });
+}
+function mascaraCodigo(el) {
+  el.addEventListener('input', () => {
+    const v = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    el.value = v.length > 4 ? v.slice(0, 4) + '-' + v.slice(4) : v;
+  });
+}
+const STATUS = {
+  configuracao: 'Em preparação',
+  aberta: 'Votação aberta',
+  aguardando_prorrogacao: 'Pausada · abaixo do mínimo',
+  aguardando_encerramento: 'Período concluído · mínimo atingido',
+  encerrada: 'Encerrada'
+};
+const pill = st => `<span class="pill s-${esc(st)}">${esc(STATUS[st] || st)}</span>`;
+const PERFIL = { admin: 'Administrador', presidente: 'Presidente da Comissão Eleitoral', mesario: 'Comissão Eleitoral' };
+
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 4200);
+}
+/* botão de confirmação em dois cliques (o visualizador não exibe confirm()) */
+function armar(btn, rotulo, fn) {
+  btn.addEventListener('click', async () => {
+    if (btn.dataset.armed !== '1') {
+      btn.dataset.armed = '1'; btn.dataset.orig = btn.textContent; btn.textContent = rotulo; btn.classList.add('armed');
+      btn._t = setTimeout(() => { btn.dataset.armed = ''; btn.textContent = btn.dataset.orig; btn.classList.remove('armed'); }, 5000);
+      return;
+    }
+    clearTimeout(btn._t); btn.dataset.armed = ''; btn.classList.remove('armed'); btn.textContent = btn.dataset.orig;
+    btn.disabled = true;
+    try { await fn(); } catch (e) { toast(e.message); } finally { btn.disabled = false; }
+  });
+}
+async function salvarArquivo(nome, blob) {
+  try {
+    if (window.claude && typeof window.claude.use === 'function') {
+      const dl = await window.claude.use('downloads');
+      if (dl) {
+        try { await dl.save({ filename: nome, data: blob }); }
+        catch (e) { if (e && e.code !== 'declined') toast('Não foi possível salvar o arquivo.'); }
+        return;
+      }
+    }
+  } catch (e) { /* segue para o download comum */ }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+}
+function lerImagem(file, max, quadrada) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let sx = 0, sy = 0, sw = img.width, sh = img.height;
+        if (quadrada) { const s = Math.min(sw, sh); sx = (sw - s) / 2; sy = (sh - s) / 2; sw = sh = s; }
+        const k = Math.min(1, max / Math.max(sw, sh));
+        const c = document.createElement('canvas'); c.width = Math.round(sw * k); c.height = Math.round(sh * k);
+        const g = c.getContext('2d');
+        if (quadrada) { g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); }
+        g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+        res(quadrada ? c.toDataURL('image/jpeg', 0.85) : c.toDataURL('image/png'));
+      };
+      img.onerror = () => rej(new Error('Não foi possível ler a imagem. Use JPG ou PNG.'));
+      img.src = fr.result;
+    };
+    fr.onerror = () => rej(new Error('Não foi possível ler o arquivo.'));
+    fr.readAsDataURL(file);
+  });
+}
+
+/* =====================================================================
+   API REAL (Supabase) — todas as regras ficam no banco
+   ===================================================================== */
+async function rpc(fn, args = {}) {
+  let r;
+  try {
+    r = await fetch(`${CONFIG.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      // aceita a chave anon antiga (eyJ...) ou a nova chave publishable (sb_publishable_...);
+      // a publishable não é um token e vai só no cabeçalho apikey
+      headers: Object.assign({ apikey: CONFIG.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        /^eyJ/.test(CONFIG.SUPABASE_ANON_KEY) ? { Authorization: 'Bearer ' + CONFIG.SUPABASE_ANON_KEY } : {}),
+      body: JSON.stringify(args)
+    });
+  } catch (e) { throw new Error('Sem conexão com o servidor. Verifique a internet e tente de novo.'); }
+  const txt = await r.text(); let data = null;
+  try { data = txt ? JSON.parse(txt) : null; } catch (e) { /* resposta vazia */ }
+  if (!r.ok) throw new Error((data && data.message) || 'O servidor recusou a operação.');
+  if (data && data.ok === false) throw new Error(data.erro);
+  return data;
+}
+const RealAPI = {
+  estado: () => rpc('estado_publico'),
+  candidatos: t => t ? rpc('admin_candidatos', { p_token: t }) : rpc('candidatos_publicos'),
+  eleitorEntrar: (m, n, c) => rpc('eleitor_entrar', { p_matricula: m, p_nascimento: n, p_codigo: c }),
+  votar: (t, e) => rpc('votar', { p_token: t, p_escolha: e }),
+  equipeEntrar: (l, s) => rpc('equipe_entrar', { p_login: l, p_senha: s }),
+  equipeSair: t => rpc('equipe_sair', { p_token: t }),
+  trocarSenha: (t, a, n) => rpc('trocar_senha', { p_token: t, p_atual: a, p_nova: n }),
+  painel: t => rpc('painel', { p_token: t }),
+  naoVotaram: (t, b) => rpc('nao_votaram', { p_token: t, p_busca: b }),
+  reemitir: (t, m, n) => rpc('reemitir_codigo', { p_token: t, p_matricula: m, p_nome: n }),
+  abrir: t => rpc('abrir_votacao', { p_token: t }),
+  solicitarProrrogacao: t => rpc('solicitar_prorrogacao', { p_token: t }),
+  confirmarPedido: t => rpc('confirmar_pedido', { p_token: t }),
+  solicitarEncerramento: t => rpc('solicitar_encerramento', { p_token: t }),
+  resultado: t => rpc('resultado', { p_token: t }),
+  log: t => rpc('ver_log', { p_token: t }),
+  resumoEleitores: t => rpc('resumo_eleitores', { p_token: t }),
+  salvarConfig: (t, c) => rpc('admin_salvar_config', { p_token: t, p_cfg: c }),
+  importarEleitores: (t, l, s) => rpc('admin_importar_eleitores', { p_token: t, p_linhas: l, p_substituir: s }),
+  salvarCandidato: (t, c) => rpc('admin_salvar_candidato', { p_token: t, p_cand: c }),
+  excluirCandidato: (t, id) => rpc('admin_excluir_candidato', { p_token: t, p_id: id }),
+  gerarCodigos: (t, s) => rpc('admin_gerar_codigos', { p_token: t, p_somente_novos: s }),
+  listarEquipe: t => rpc('admin_listar_equipe', { p_token: t }),
+  salvarMembro: (t, m) => rpc('admin_salvar_equipe', { p_token: t, p_membro: m }),
+  excluirMembro: (t, id) => rpc('admin_excluir_equipe', { p_token: t, p_id: id }),
+  desbloquearMembro: (t, id) => rpc('admin_desbloquear_equipe', { p_token: t, p_id: id }),
+  senhaProvisoria: (t, id) => rpc('admin_senha_provisoria', { p_token: t, p_id: id }),
+  reiniciar: (t, c) => rpc('admin_reiniciar', { p_token: t, p_confirmacao: c }),
+  encerrarForcado: (t, c, j) => rpc('admin_encerrar_forcado', { p_token: t, p_confirmacao: c, p_justificativa: j })
+};
+
+/* =====================================================================
+   API DE DEMONSTRAÇÃO — mesmas regras do banco, rodando no navegador
+   ===================================================================== */
+function makeDemo() {
+  const KEY = 'urnacipa-demo-v2';
+  let S;
+  const now = () => Date.now() + (S.offset || 0);
+  const iso = t => new Date(t).toISOString();
+  const bloqueio = n => n > 0 && n % 5 === 0 ? iso(now() + Math.min(15 * (n / 5), 60) * 60000) : null;
+  const horaHM = t => new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(new Date(t));
+  const senhaOk = p => { if (String(p || '').length < 10) throw new Error('A senha precisa ter pelo menos 10 caracteres.'); if (/TROQUE-ESTA-SENHA/i.test(p)) throw new Error('Troque a senha de exemplo por uma senha sua.'); };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* armazenamento indisponível */ } };
+  const load = () => { try { const t = localStorage.getItem(KEY); return t ? JSON.parse(t) : null; } catch (e) { return null; } };
+  const tok = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const norm = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const fail = m => { save(); throw new Error(m); };
+  const ALFA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const novoCodigo = () => { let r = ''; for (let i = 0; i < 8; i++) { r += ALFA[Math.floor(Math.random() * 31)]; if (i === 3) r += '-'; } return r; };
+  const log = (ator, acao, detalhe = '') => S.log.push({ id: ++S.seq, quando: iso(now()), ator, acao, detalhe });
+  const apto = e => !S.config.situacoes_aptas.length || S.config.situacoes_aptas.includes(e.situacao);
+  const contagem = () => { let aptos = 0, votantes = 0; for (const e of S.eleitores) { if (apto(e)) aptos++; if (e.votou) votantes++; } return { aptos, votantes }; };
+  const metaOk = (f, v, a) => a > 0 && (f === 1 ? v * 2 >= a : v * 3 >= a);
+  const pendente = () => S.prorrogacoes.find(p => !p.concluida_em) || null;
+  const pubCfg = () => { const c = S.config; return { empresa: c.empresa, cnpj: c.cnpj, endereco: c.endereco, titulo: c.titulo, gestao: c.gestao, logo: c.logo, cor: c.cor, url_site: c.url_site, vagas_titulares: c.vagas_titulares, vagas_suplentes: c.vagas_suplentes, duracao_horas: c.duracao_horas }; };
+  function atualizar() {
+    const E = S.eleicao;
+    if (E.status === 'aberta' && now() < Date.parse(E.fim)) {
+      const { aptos, votantes } = contagem();
+      if (aptos > 0 && votantes >= aptos && !S.eleitores.some(e => apto(e) && !e.votou)) {
+        E.status = 'aguardando_encerramento';
+        log('Sistema', 'Período encerrado', `${faseNome(E.fase)}: todos os ${aptos} eleitores aptos votaram (100%). Encerramento liberado antes do prazo.`);
+        save();
+      }
+      return E;
+    }
+    if (E.status === 'aberta' && now() >= Date.parse(E.fim)) {
+      const { aptos, votantes } = contagem(); const p = fmtPct(pctN(votantes, aptos));
+      if (metaOk(E.fase, votantes, aptos)) {
+        E.status = 'aguardando_encerramento';
+        log('Sistema', 'Período encerrado', `${faseNome(E.fase)}: ${votantes} de ${aptos} eleitores votaram (${p}). Meta atingida.`);
+      } else {
+        E.status = 'aguardando_prorrogacao';
+        log('Sistema', 'Meta não atingida', `${faseNome(E.fase)}: ${votantes} de ${aptos} eleitores votaram (${p}). Mínimo exigido: ${E.fase === 1 ? '50%' : '1/3'}. Votação pausada.`);
+      }
+      save();
+    }
+    return E;
+  }
+  function sessao(t) {
+    const s = S.sess[t]; const m = s && S.equipe.find(x => x.id === s.id && x.ativo);
+    if (!m) throw new Error('Sessão expirada. Entre novamente.');
+    return m;
+  }
+  function staff(t, perfis) {
+    const m = sessao(t);
+    if (m.trocar_senha) throw new Error('Crie a sua senha pessoal antes de continuar.');
+    if (!perfis.includes(m.perfil)) throw new Error('Seu perfil não tem permissão para esta ação.');
+    return m;
+  }
+  const TODOS = ['admin', 'presidente', 'mesario'];
+  const EVENTOS = ['Votação aberta', 'Período encerrado', 'Meta não atingida', 'Prorrogação solicitada', 'Prorrogação confirmada', 'Prorrogação aprovada', 'Votação encerrada', 'Encerramento administrativo', 'Encerramento solicitado', 'Encerramento confirmado', 'Senha provisória emitida', 'Acesso desbloqueado'];
+  function ultimo(acoes) { for (let i = S.log.length - 1; i >= 0; i--) if (acoes.includes(S.log[i].acao)) return { em: S.log[i].quando, por: S.log[i].ator }; return null; }
+  function preparacao() {
+    const c = S.config, { aptos } = contagem();
+    const equipe = S.equipe.filter(m => m.ativo && m.perfil !== 'admin');
+    let eq = ultimo(['Equipe alterada']);
+    if (!eq && equipe.length) eq = { em: equipe.map(m => m.criado_em || '').sort().pop() || null, por: null };
+    const el = ultimo(['Eleitores importados']), ca = ultimo(['Candidato cadastrado', 'Candidato alterado', 'Candidato excluído']), co = ultimo(['Códigos gerados']);
+    const mes = equipe.filter(m => m.perfil === 'mesario').length;
+    const tudo = c.cadastrada_em && el && ca && eq && eq.em && co && aptos > 0 && S.candidatos.length > 0 && mes >= c.confirmacoes_necessarias;
+    return {
+      empresa: { em: c.cadastrada_em || null, por: c.cadastrada_por || null }, eleitores: el, total_eleitores: S.eleitores.length, aptos,
+      candidatos: ca, total_candidatos: S.candidatos.length, equipe: eq,
+      presidente: equipe.filter(m => m.perfil === 'presidente').map(m => m.nome).sort().join(', ') || null, mesarios: mes,
+      codigos: co, apta_em: tudo ? [c.cadastrada_em, el.em, ca.em, eq.em, co.em].sort().pop() : null
+    };
+  }
+  function resultado() {
+    const c = S.config, cont = {}; let brancos = 0, nulos = 0;
+    for (const v of S.votos) { if (v.escolha === 'BRANCO') brancos++; else if (v.escolha === 'NULO') nulos++; else cont[v.escolha] = (cont[v.escolha] || 0) + 1; }
+    const cands = S.candidatos.map(k => ({ id: k.id, nome: k.nome, apelido: k.apelido, setor: k.setor, admissao: k.admissao, foto: k.foto, votos: cont[String(k.id)] || 0 }))
+      .sort((a, b) => b.votos - a.votos || (a.admissao || '9999').localeCompare(b.admissao || '9999') || a.nome.localeCompare(b.nome));
+    cands.forEach((k, i) => { k.posicao = i + 1; k.condicao = k.votos > 0 ? (i < c.vagas_titulares ? 'Titular' : i < c.vagas_titulares + c.vagas_suplentes ? 'Suplente' : '') : ''; });
+    const { aptos, votantes } = contagem(); const E = S.eleicao;
+    return clone({
+      config: c, fase: E.fase, aberta_em: E.aberta_em, encerrada_em: E.encerrada_em, encerrada_por: E.encerrada_por,
+      encerramento_tipo: E.encerramento_tipo || 'normal', justificativa: E.justificativa || null,
+      confirmacoes_encerramento: (S.prorrogacoes.find(p => p.tipo === 'encerramento' && p.concluida_em) || { confirmacoes: [] }).confirmacoes.map(c => ({ nome: c.nome, em: c.em })),
+      aptos, votantes, brancos, nulos, total_votos: S.votos.length, candidatos: cands,
+      eventos: S.log.filter(l => EVENTOS.includes(l.acao) && (!S.eleicao.aberta_em || Date.parse(l.quando) >= Date.parse(S.eleicao.aberta_em))),
+      equipe: S.equipe.filter(m => m.ativo && m.perfil !== 'admin').sort((a, b) => b.perfil.localeCompare(a.perfil) || a.nome.localeCompare(b.nome)).map(m => ({ nome: m.nome, perfil: m.perfil })),
+      preparacao: preparacao(),
+      votos_por_fase: Object.entries(S.votos.reduce((a, v) => { a[v.fase] = (a[v.fase] || 0) + 1; return a; }, {})).map(([fase, votos]) => ({ fase: +fase, votos }))
+    });
+  }
+  const api = {
+    async estado() { await sleep(80); const E = atualizar(); return clone({ config: pubCfg(), status: E.status, fase: E.fase, inicio: E.inicio, fim: E.fim, agora: iso(now()), resultado: E.status === 'encerrada' ? resultado() : null }); },
+    async candidatos(t) { if (t) staff(t, ['admin']); return clone(S.candidatos.slice().sort((a, b) => a.apelido.localeCompare(b.apelido, 'pt')).map(k => t ? k : (({ matricula, ...r }) => r)(k))); },
+    async eleitorEntrar(m, n, c) {
+      await sleep(250); const E = atualizar(); const errMsg = 'Dados não conferem. Confira matrícula, data de nascimento e código.';
+      if (E.status !== 'aberta') fail('A votação não está aberta neste momento.');
+      const r = S.eleitores.find(e => e.matricula === String(m).trim()); if (!r) fail(errMsg);
+      if (r.bloqueado_ate && Date.parse(r.bloqueado_ate) > now()) fail(`Muitas tentativas incorretas. Tente de novo depois das ${horaHM(r.bloqueado_ate)}.`);
+      if (!r.codigo || r.nascimento !== n || norm(r.codigo) !== norm(c)) { r.tentativas = (r.tentativas || 0) + 1; r.bloqueado_ate = bloqueio(r.tentativas); if (r.bloqueado_ate) log('Sistema', 'Eleitor bloqueado', `Matrícula ${r.matricula}: ${r.tentativas} tentativas incorretas. Acesso bloqueado até ${fmtDT(r.bloqueado_ate)}.`); save(); fail(errMsg); }
+      if (r.votou) fail('Seu voto já foi registrado. Cada pessoa vota uma única vez.');
+      if (!apto(r)) fail('Sua situação cadastral não permite votar nesta eleição. Procure a comissão eleitoral.');
+      const t = tok(); r.sessao = t; r.sessao_expira = now() + 600000; r.tentativas = 0; r.bloqueado_ate = null; save();
+      return { ok: true, token: t, nome: r.nome };
+    },
+    async votar(t, esc) {
+      await sleep(300); const E = atualizar();
+      if (E.status !== 'aberta') fail('O período de votação terminou.');
+      const r = S.eleitores.find(e => e.sessao === t && e.sessao_expira > now()); if (!r) fail('Sua sessão expirou. Entre novamente com seu código.');
+      if (r.votou) fail('Seu voto já foi registrado.');
+      if (esc !== 'BRANCO' && esc !== 'NULO' && !S.candidatos.some(k => String(k.id) === String(esc))) fail('Opção de voto inválida.');
+      S.votos.splice(Math.floor(Math.random() * (S.votos.length + 1)), 0, { escolha: String(esc), fase: E.fase }); r.votou = true; r.sessao = null; save(); return { ok: true };
+    },
+    async equipeEntrar(l, s) {
+      await sleep(200); const m = S.equipe.find(x => x.ativo && x.login === String(l).trim().toLowerCase());
+      if (m && m.bloqueado_ate && Date.parse(m.bloqueado_ate) > now()) throw new Error(`Acesso bloqueado por tentativas incorretas. Tente de novo depois das ${horaHM(m.bloqueado_ate)}.`);
+      if (!m || m.senha !== s) { if (m) { m.tentativas = (m.tentativas || 0) + 1; m.bloqueado_ate = bloqueio(m.tentativas); if (m.bloqueado_ate) log('Sistema', 'Login bloqueado', `${m.nome}: ${m.tentativas} senhas incorretas. Acesso bloqueado até ${fmtDT(m.bloqueado_ate)}.`); save(); } throw new Error('Login ou senha incorretos.'); }
+      m.tentativas = 0; m.bloqueado_ate = null;
+      const t = tok(); S.sess[t] = { id: m.id }; log(m.nome, 'Acesso ao painel', m.perfil); save();
+      return { ok: true, token: t, nome: m.nome, perfil: m.perfil, trocar_senha: !!m.trocar_senha };
+    },
+    async equipeSair(t) { delete S.sess[t]; save(); return { ok: true }; },
+    async trocarSenha(t, a, n) { const m = sessao(t); if (m.senha !== a) throw new Error('A senha atual não confere.'); senhaOk(n); if (n === a) throw new Error('A nova senha precisa ser diferente da atual.'); m.senha = n; m.trocar_senha = false; log(m.nome, 'Senha alterada'); save(); return { ok: true }; },
+    async painel(t) {
+      await sleep(60); const m = staff(t, TODOS); const E = atualizar(); const { aptos, votantes } = contagem(); const p = pendente();
+      return clone({
+        perfil: m.perfil, nome: m.nome, login: m.login, status: E.status, fase: E.fase, inicio: E.inicio, fim: E.fim, agora: iso(now()), aptos, votantes, config: S.config,
+        prorrogacao: p ? { ...p, eu_confirmei: p.confirmacoes.some(c => c.equipe_id === m.id) } : null,
+        mesarios: S.equipe.filter(x => x.ativo && x.perfil === 'mesario').length, candidatos: S.candidatos.length, eleitores: S.eleitores.length,
+        sem_codigo: S.eleitores.filter(e => apto(e) && !e.codigo).length, codigos_gerados_em: E.codigos_gerados_em, encerrada_em: E.encerrada_em, encerrada_por: E.encerrada_por,
+        encerramento_tipo: E.encerramento_tipo || 'normal', justificativa: E.justificativa || null
+      });
+    },
+    async naoVotaram(t, b) {
+      const m = staff(t, TODOS); b = String(b || '').trim().toLowerCase(); if (!b) { log(m.nome, 'Consultou lista de quem não votou'); save(); }
+      const base = S.eleitores.filter(e => !e.votou && apto(e));
+      const itens = base.filter(e => !b || e.nome.toLowerCase().includes(b) || e.matricula.startsWith(b) || e.setor.toLowerCase().includes(b))
+        .sort((x, y) => x.setor.localeCompare(y.setor) || x.nome.localeCompare(y.nome)).slice(0, 300).map(e => ({ matricula: e.matricula, nome: e.nome, setor: e.setor }));
+      return { total: base.length, itens };
+    },
+    async reemitir(t, mat, n) {
+      const m = staff(t, ['mesario', 'presidente']); const E = atualizar();
+      if (!['configuracao', 'aberta', 'aguardando_prorrogacao'].includes(E.status)) throw new Error('Não é possível emitir códigos nesta etapa da eleição.');
+      const r = S.eleitores.find(e => e.matricula === String(mat).trim());
+      if (!r || normNome(r.nome) !== normNome(n)) throw new Error('Matrícula e nome completo não conferem com o cadastro.');
+      if (!apto(r)) throw new Error(`Este empregado não está apto a votar (situação: ${r.situacao}).`);
+      if (r.votou) throw new Error('Este eleitor já votou. Não é possível emitir novo código.');
+      if ((r.reemissoes || 0) >= 3 && m.perfil !== 'presidente') throw new Error('Este eleitor já recebeu 3 novos códigos. Só o presidente da comissão eleitoral pode emitir outro.');
+      r.codigo = novoCodigo(); r.reemissoes = (r.reemissoes || 0) + 1; r.sessao = null;
+      log(m.nome, 'Código reemitido', `Matrícula ${r.matricula} (${r.reemissoes}ª reemissão)`); save();
+      return { ok: true, codigo: r.codigo, nome: r.nome, matricula: r.matricula, reemissoes: r.reemissoes, bloqueado_ate: r.bloqueado_ate && Date.parse(r.bloqueado_ate) > now() ? r.bloqueado_ate : null };
+    },
+    async abrir(t) {
+      const m = staff(t, ['presidente']); const E = atualizar(); const c = S.config; const { aptos } = contagem();
+      if (E.status !== 'configuracao') throw new Error('A votação já foi aberta.');
+      if (!aptos) throw new Error('Importe a lista de eleitores antes de abrir a votação.');
+      if (!E.codigos_gerados_em || S.eleitores.some(e => apto(e) && !e.codigo)) throw new Error('Gere os códigos de acesso de todos os eleitores antes de abrir a votação.');
+      if (!S.candidatos.length) throw new Error('Cadastre os candidatos antes de abrir a votação.');
+      if (S.equipe.filter(x => x.ativo && x.perfil === 'mesario').length < c.confirmacoes_necessarias) throw new Error(`Cadastre pelo menos ${c.confirmacoes_necessarias} membros da comissão eleitoral antes de abrir a votação.`);
+      const fim = now() + c.duracao_horas * 3600000;
+      Object.assign(E, { status: 'aberta', fase: 1, inicio: iso(now()), aberta_em: iso(now()), fim: iso(fim) });
+      log(m.nome, 'Votação aberta', `1º período de ${c.duracao_horas} horas, até ${fmtDT(iso(fim))}. ${aptos} eleitores aptos.`); save(); return { ok: true };
+    },
+    async solicitarProrrogacao(t) {
+      const m = staff(t, ['presidente']); const E = atualizar(); const c = S.config;
+      if (E.status !== 'aguardando_prorrogacao') throw new Error('A prorrogação só pode ser pedida quando o período termina abaixo da participação mínima.');
+      if (pendente()) throw new Error('Já existe um pedido aguardando os membros da comissão eleitoral.');
+      S.prorrogacoes.push({ id: ++S.seq, tipo: 'prorrogacao', fase_destino: E.fase + 1, solicitada_em: iso(now()), solicitada_por: m.nome, concluida_em: null, confirmacoes: [] });
+      log(m.nome, 'Prorrogação solicitada', `${faseNome(E.fase + 1)} por mais ${c.duracao_horas} horas. Aguardando ${c.confirmacoes_necessarias} confirmações de membros da comissão eleitoral.`); save(); return { ok: true };
+    },
+    async solicitarEncerramento(t) {
+      const m = staff(t, ['presidente']); const E = atualizar(); const c = S.config;
+      if (E.status !== 'aguardando_encerramento') {
+        if (E.status === 'aberta') throw new Error('O encerramento fica disponível ao fim do período ou quando todos votarem.');
+        if (E.status === 'aguardando_prorrogacao') throw new Error('A participação ficou abaixo do mínimo. É preciso prorrogar a votação.');
+        throw new Error('A votação não pode ser encerrada nesta etapa.');
+      }
+      if (pendente()) throw new Error('Já existe um pedido aguardando os membros da comissão eleitoral.');
+      S.prorrogacoes.push({ id: ++S.seq, tipo: 'encerramento', fase_destino: E.fase, solicitada_em: iso(now()), solicitada_por: m.nome, concluida_em: null, confirmacoes: [] });
+      log(m.nome, 'Encerramento solicitado', `Aguardando ${c.confirmacoes_necessarias} confirmações de membros da comissão eleitoral para encerrar e apurar.`); save(); return { ok: true };
+    },
+    async confirmarPedido(t) {
+      const m = staff(t, ['mesario']); const E = atualizar(); const c = S.config; const p = pendente();
+      if (!p || (p.tipo === 'prorrogacao' && E.status !== 'aguardando_prorrogacao') || (p.tipo === 'encerramento' && E.status !== 'aguardando_encerramento')) throw new Error('Não há pedido aguardando confirmação.');
+      if (p.confirmacoes.some(x => x.equipe_id === m.id)) throw new Error('Você já confirmou este pedido.');
+      p.confirmacoes.push({ equipe_id: m.id, nome: m.nome, em: iso(now()) });
+      const n = p.confirmacoes.length; const ok = n >= c.confirmacoes_necessarias;
+      if (p.tipo === 'prorrogacao') {
+        log(m.nome, 'Prorrogação confirmada', faseNome(p.fase_destino));
+        if (ok) {
+          p.concluida_em = iso(now()); const fim = now() + c.duracao_horas * 3600000;
+          Object.assign(E, { status: 'aberta', fase: p.fase_destino, inicio: iso(now()), fim: iso(fim) });
+          log('Sistema', 'Prorrogação aprovada', `${n} confirmações. ${faseNome(p.fase_destino)} aberta até ${fmtDT(iso(fim))}. Mínimo exigido: 1/3 dos eleitores aptos.`);
+        }
+      } else {
+        log(m.nome, 'Encerramento confirmado');
+        if (ok) {
+          const { aptos, votantes } = contagem(); p.concluida_em = iso(now());
+          Object.assign(E, { status: 'encerrada', encerrada_em: iso(now()), encerrada_por: p.solicitada_por, encerramento_tipo: 'normal', justificativa: null });
+          S.eleitores.forEach(e => { e.sessao = null; });
+          log('Sistema', 'Votação encerrada', `Pedido de ${p.solicitada_por} confirmado por ${n} membros da comissão eleitoral (${p.confirmacoes.map(x => x.nome).join(', ')}). ${votantes} de ${aptos} eleitores votaram (${fmtPct(pctN(votantes, aptos))}). Apuração liberada.`);
+        }
+      }
+      save(); return { ok: true, tipo: p.tipo, confirmacoes: n, aprovada: ok };
+    },
+    async resultado(t) { staff(t, TODOS); const E = atualizar(); if (E.status !== 'encerrada') throw new Error('O resultado só aparece depois do encerramento da votação.'); return resultado(); },
+    async log(t) { staff(t, ['admin', 'presidente']); return clone(S.log.slice().reverse().slice(0, 5000)); },
+    async resumoEleitores(t) {
+      staff(t, ['admin', 'presidente']); const E = atualizar(); const { aptos, votantes } = contagem(); const sit = {};
+      S.eleitores.forEach(e => { sit[e.situacao] = (sit[e.situacao] || 0) + 1; });
+      return { total: S.eleitores.length, aptos, votantes, sem_codigo: S.eleitores.filter(e => apto(e) && !e.codigo).length, codigos_gerados_em: E.codigos_gerados_em, situacoes: Object.entries(sit).sort((a, b) => b[1] - a[1]).map(([situacao, total]) => ({ situacao, total })) };
+    },
+    async salvarConfig(t, cfg) {
+      const m = staff(t, ['admin']); const E = atualizar(); const c = S.config;
+      const cnpjAntes = c.cnpj, empAntes = c.empresa;
+      ['empresa', 'cnpj', 'endereco', 'titulo', 'gestao', 'cor', 'url_site'].forEach(k => { if (cfg[k] != null) c[k] = String(cfg[k]); });
+      if ('logo' in cfg) c.logo = cfg.logo;
+      if (E.status === 'configuracao') {
+        const lim = (k, a, b) => { if (cfg[k] != null) { const v = parseInt(cfg[k], 10); if (!(v >= a && v <= b)) throw new Error('Valor fora do limite em ' + k.replace('_', ' ') + '.'); c[k] = v; } };
+        lim('vagas_titulares', 1, 50); lim('vagas_suplentes', 0, 50); lim('duracao_horas', 1, 168); lim('confirmacoes_necessarias', 1, 9999);
+        if (cfg.situacoes_aptas) c.situacoes_aptas = cfg.situacoes_aptas.slice();
+      }
+      // empresa nova: primeiro cadastro, ou troca de CNPJ (ou de razão social sem CNPJ) antes da abertura
+      const outra = E.status === 'configuracao' && ((cfg.cnpj != null && cfg.cnpj !== cnpjAntes) || (!cnpjAntes && cfg.empresa != null && cfg.empresa !== empAntes));
+      if ('empresa' in cfg && (!c.cadastrada_em || outra)) { c.cadastrada_em = iso(now()); c.cadastrada_por = m.nome; log(m.nome, 'Empresa cadastrada', c.empresa + (c.cnpj ? ' · CNPJ ' + c.cnpj : '')); }
+      else log(m.nome, 'Configuração alterada');
+      save(); return { ok: true };
+    },
+    async importarEleitores(t, linhas, sub) {
+      const m = staff(t, ['admin']); const E = atualizar();
+      if (E.status !== 'configuracao') throw new Error('A lista de eleitores fica bloqueada depois que a votação é aberta.');
+      if (sub) { S.eleitores = []; E.codigos_gerados_em = null; }
+      for (const l of linhas) {
+        const ex = S.eleitores.find(e => e.matricula === l.matricula);
+        const d = { matricula: String(l.matricula).trim(), nome: String(l.nome).trim(), nascimento: l.nascimento, celular: l.celular || null, setor: l.setor || '', situacao: l.situacao || 'Ativo' };
+        if (ex) Object.assign(ex, d); else S.eleitores.push({ ...d, codigo: null, votou: false, tentativas: 0, bloqueado_ate: null, sessao: null });
+      }
+      log(m.nome, 'Eleitores importados', `${linhas.length} registros${sub ? ' (lista substituída)' : ''}`); save(); return { ok: true, importados: linhas.length };
+    },
+    async salvarCandidato(t, k) {
+      const m = staff(t, ['admin']); const E = atualizar();
+      if (E.status !== 'configuracao') throw new Error('Os candidatos ficam bloqueados depois que a votação é aberta.');
+      if (!String(k.nome || '').trim() || !String(k.apelido || '').trim()) throw new Error('Informe o nome e o apelido do candidato.');
+      const d = { nome: k.nome.trim(), apelido: k.apelido.trim(), setor: (k.setor || '').trim(), matricula: (k.matricula || '').trim() || null, admissao: k.admissao || null };
+      if (k.id) { const ex = S.candidatos.find(x => x.id === +k.id); Object.assign(ex, d); if ('foto' in k) ex.foto = k.foto; log(m.nome, 'Candidato alterado', d.apelido); }
+      else { S.candidatos.push({ id: ++S.seq, ...d, foto: k.foto || null }); log(m.nome, 'Candidato cadastrado', d.apelido); }
+      save(); return { ok: true };
+    },
+    async excluirCandidato(t, id) {
+      const m = staff(t, ['admin']); const E = atualizar();
+      if (E.status !== 'configuracao') throw new Error('Os candidatos ficam bloqueados depois que a votação é aberta.');
+      const k = S.candidatos.find(x => x.id === +id); S.candidatos = S.candidatos.filter(x => x.id !== +id);
+      log(m.nome, 'Candidato excluído', k ? k.apelido : ''); save(); return { ok: true };
+    },
+    async gerarCodigos(t, so) {
+      const m = staff(t, ['admin']); const E = atualizar();
+      if (E.status !== 'configuracao') throw new Error('Depois da abertura, novos códigos são emitidos individualmente pelos membros da comissão eleitoral.');
+      if (!so) S.eleitores.filter(e => !apto(e)).forEach(e => { e.codigo = null; });
+      const out = [];
+      S.eleitores.filter(e => apto(e) && (!so || !e.codigo)).forEach(e => { e.codigo = novoCodigo(); e.tentativas = 0; e.bloqueado_ate = null; out.push({ matricula: e.matricula, nome: e.nome, setor: e.setor, codigo: e.codigo }); });
+      out.sort((a, b) => a.setor.localeCompare(b.setor) || a.nome.localeCompare(b.nome));
+      E.codigos_gerados_em = iso(now());
+      log(m.nome, 'Códigos gerados', `${out.length} códigos${so ? ' (somente novos eleitores)' : ' (todos os anteriores invalidados)'}`); save();
+      return { ok: true, codigos: out };
+    },
+    async listarEquipe(t) { staff(t, ['admin']); return clone(S.equipe.filter(m => m.ativo).sort((a, b) => a.perfil.localeCompare(b.perfil) || a.nome.localeCompare(b.nome)).map(({ id, login, nome, perfil, trocar_senha, bloqueado_ate }) => ({ id, login, nome, perfil, trocar_senha: !!trocar_senha, bloqueado_ate: bloqueado_ate && Date.parse(bloqueado_ate) > now() ? bloqueado_ate : null }))); },
+    async desbloquearMembro(t, id) {
+      const m = staff(t, ['admin']); const x = S.equipe.find(q => q.id === +id && q.ativo); if (!x) throw new Error('Acesso não encontrado.');
+      x.tentativas = 0; x.bloqueado_ate = null; log(m.nome, 'Acesso desbloqueado', `${x.nome} (${x.perfil})`); save(); return { ok: true };
+    },
+    async senhaProvisoria(t, id) {
+      const m = staff(t, ['admin']); const E = atualizar(); const x = S.equipe.find(q => q.id === +id && q.ativo); if (!x) throw new Error('Acesso não encontrado.');
+      if (x.id === m.id) throw new Error('Para a sua própria senha, use Conta e manutenção.');
+      const al = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', r = crypto.getRandomValues(new Uint8Array(12)); let sn = '';
+      r.forEach((v, i) => { sn += al[v % 31]; if (i === 3 || i === 7) sn += '-'; });
+      Object.assign(x, { senha: sn, trocar_senha: true, tentativas: 0, bloqueado_ate: null });
+      Object.keys(S.sess).forEach(k => { if (S.sess[k].id === x.id) delete S.sess[k]; });
+      log(m.nome, 'Senha provisória emitida', `${x.nome} (${x.perfil})${['aberta', 'aguardando_prorrogacao', 'aguardando_encerramento'].includes(E.status) ? ' · durante a votação' : ''}`); save();
+      return { ok: true, senha: sn, nome: x.nome, login: x.login };
+    },
+    async salvarMembro(t, x) {
+      const m = staff(t, ['admin']); const E = atualizar(); const login = String(x.login || '').trim().toLowerCase(), nome = String(x.nome || '').trim(), senha = String(x.senha || '');
+      if (['aberta', 'aguardando_prorrogacao', 'aguardando_encerramento'].includes(E.status)) throw new Error('Com a votação em andamento, a equipe fica travada: não é possível criar acessos nem mudar nome, login ou perfil. Para senha esquecida ou acesso bloqueado, use Desbloquear ou Senha provisória.');
+      if (!login || !nome) throw new Error('Informe login e nome.');
+      if (senha) senhaOk(senha);
+      if (!x.id) {
+        if (!senha) throw new Error('Defina uma senha inicial.');
+        if (S.equipe.some(e => e.login === login)) throw new Error('Já existe alguém com este login.');
+        S.equipe.push({ id: ++S.seq, login, nome, perfil: x.perfil, senha, ativo: true, criado_em: iso(now()) });
+      } else {
+        if (+x.id === m.id && x.perfil !== 'admin') throw new Error('Você não pode tirar o seu próprio perfil de administrador.');
+        const e = S.equipe.find(q => q.id === +x.id); Object.assign(e, { login, nome, perfil: x.perfil }); if (senha) { e.senha = senha; e.tentativas = 0; e.bloqueado_ate = null; }
+      }
+      log(m.nome, 'Equipe alterada', `${nome} (${x.perfil})`); save(); return { ok: true };
+    },
+    async excluirMembro(t, id) {
+      const m = staff(t, ['admin']); if (+id === m.id) throw new Error('Você não pode remover o seu próprio acesso.');
+      const e = S.equipe.find(q => q.id === +id); if (e) { e.ativo = false; e.login += '#removido' + e.id; }
+      Object.keys(S.sess).forEach(k => { if (S.sess[k].id === +id) delete S.sess[k]; });
+      log(m.nome, 'Equipe alterada', (e ? e.nome : '') + ' removido(a)'); save(); return { ok: true };
+    },
+    async encerrarForcado(t, conf, just) {
+      const m = staff(t, ['admin']); const E = atualizar();
+      if (conf !== 'ENCERRAR') throw new Error('Digite ENCERRAR para confirmar.');
+      just = String(just || '').trim();
+      if (just.length < 10) throw new Error('Escreva a justificativa do encerramento (mínimo de 10 caracteres).');
+      if (E.status === 'encerrada') throw new Error('A eleição já está encerrada.');
+      const { aptos, votantes } = contagem(); const antes = E.status;
+      S.prorrogacoes.forEach(p => { if (!p.concluida_em) p.concluida_em = iso(now()); });
+      Object.assign(E, { status: 'encerrada', encerrada_em: iso(now()), encerrada_por: m.nome, encerramento_tipo: 'administrativo', justificativa: just, fim: !E.fim || Date.parse(E.fim) > now() ? iso(now()) : E.fim });
+      S.eleitores.forEach(e => { e.sessao = null; });
+      log(m.nome, 'Encerramento administrativo', `Etapa anterior: ${antes}. ${votantes} de ${aptos} eleitores votaram (${fmtPct(pctN(votantes, aptos))}). Justificativa: ${just}`);
+      save(); return resultado();
+    },
+    async reiniciar(t, conf) {
+      const m = staff(t, ['admin']); const E = atualizar();
+      if (conf !== 'REINICIAR') throw new Error('Digite REINICIAR para confirmar.');
+      if (!['configuracao', 'encerrada'].includes(E.status)) throw new Error('Não é possível reiniciar com a eleição em andamento.');
+      S.votos = []; S.prorrogacoes = []; S.eleitores = []; S.candidatos = []; S.log = [];
+      S.equipe = S.equipe.filter(x => x.perfil === 'admin'); Object.keys(S.sess).forEach(k => { if (!S.equipe.some(x => x.id === S.sess[k].id)) delete S.sess[k]; });
+      S.config = { cadastrada_em: null, cadastrada_por: null, empresa: 'Nome da empresa', cnpj: '', endereco: '', titulo: 'Eleição da CIPA', gestao: '', logo: null, cor: '#0f6b4f', url_site: 'www.cipaflow.com.br/votar', vagas_titulares: 1, vagas_suplentes: 1, duracao_horas: 24, confirmacoes_necessarias: 3, situacoes_aptas: [] };
+      S.eleicao = { status: 'configuracao', fase: 1, inicio: null, fim: null, aberta_em: null, encerrada_em: null, encerrada_por: null, codigos_gerados_em: null, encerramento_tipo: 'normal', justificativa: null };
+      log(m.nome, 'Sistema reiniciado', 'Empresa, equipe (exceto administradores) e dados da eleição anterior apagados.'); save(); return { ok: true };
+    }
+  };
+
+  /* ---- dados fictícios ---- */
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function avatar(hue) {
+    const c = document.createElement('canvas'); c.width = c.height = 240; const g = c.getContext('2d');
+    g.fillStyle = `hsl(${hue} 32% 40%)`; g.fillRect(0, 0, 240, 240);
+    g.fillStyle = `hsl(${hue} 28% 80%)`; g.beginPath(); g.arc(120, 98, 48, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(120, 250, 92, 80, 0, Math.PI, 0); g.fill();
+    return c.toDataURL('image/png');
+  }
+  function logoDemo() {
+    const c = document.createElement('canvas'); c.width = 200; c.height = 200; const g = c.getContext('2d');
+    g.fillStyle = '#1c3d5a'; g.beginPath(); g.moveTo(100, 12); g.lineTo(182, 46); g.lineTo(182, 104); g.quadraticCurveTo(182, 160, 100, 190); g.quadraticCurveTo(18, 160, 18, 104); g.lineTo(18, 46); g.closePath(); g.fill();
+    g.fillStyle = '#f2c230'; g.font = '800 64px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ME', 100, 108);
+    return c.toDataURL('image/png');
+  }
+  function seed(modo) {
+    const r = rng(42); const pick = a => a[Math.floor(r() * a.length)];
+    const t0 = Date.now();
+    S = { v: 1, offset: 0, seq: 100, sess: {}, log: [], votos: [], prorrogacoes: [], candidatos: [], eleitores: [], equipe: [], config: {}, eleicao: {} };
+    S.config = { cadastrada_em: new Date(t0 - 4 * 86400000).toISOString(), cadastrada_por: 'Administrador do sistema', empresa: 'Metalúrgica Exemplo Ltda.', cnpj: '00.000.000/0001-00', endereco: 'Av. Industrial, 1000 · Distrito Industrial · São Paulo/SP', titulo: 'Eleição da CIPA', gestao: '2026/2027', logo: logoDemo(), cor: '#1c3d5a', url_site: 'www.cipaflow.com.br/votar', vagas_titulares: 2, vagas_suplentes: 2, duracao_horas: 24, confirmacoes_necessarias: 3, situacoes_aptas: ['Ativo', 'Férias'] };
+    S.equipe = [
+      { id: 1, login: 'admin', nome: 'Administrador do sistema', perfil: 'admin', senha: 'admin123', ativo: true, criado_em: new Date(t0 - 5 * 86400000).toISOString() },
+      { id: 2, login: 'presidente', nome: 'Marta Ribeiro Lopes', perfil: 'presidente', senha: 'presidente123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 3, login: 'mesario1', nome: 'Anderson Costa', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 4, login: 'mesario2', nome: 'Beatriz Nogueira', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 5, login: 'mesario3', nome: 'Cláudio Farias', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 6, login: 'mesario4', nome: 'Daniela Prado', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 7, login: 'mesario5', nome: 'Edson Martins', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() }
+    ];
+    const nomes = ['Adriana', 'Alexandre', 'Aline', 'Antônio', 'Bruno', 'Camila', 'Carlos', 'Cristiane', 'Diego', 'Eduardo', 'Elaine', 'Fábio', 'Fernanda', 'Gabriel', 'Gustavo', 'Juliana', 'Leandro', 'Luana', 'Luciano', 'Marcelo', 'Mariana', 'Natália', 'Paulo', 'Priscila', 'Rafael', 'Renata', 'Rodrigo', 'Sandra', 'Thiago', 'Vanessa', 'Wellington', 'Yasmin'];
+    const sob = ['Almeida', 'Barbosa', 'Cardoso', 'Carvalho', 'Castro', 'Dias', 'Fernandes', 'Freitas', 'Gomes', 'Lima', 'Machado', 'Martins', 'Melo', 'Moreira', 'Oliveira', 'Pereira', 'Pinto', 'Ramos', 'Rocha', 'Santos', 'Silva', 'Soares', 'Souza', 'Teixeira', 'Vieira'];
+    const setores = ['Produção', 'Produção', 'Produção', 'Manutenção', 'Logística', 'Qualidade', 'Expedição', 'Administrativo'];
+    const usados = new Set();
+    for (let i = 0; i < 60; i++) {
+      let nome; do { nome = `${pick(nomes)} ${pick(sob)} ${pick(sob)}`; } while (usados.has(nome)); usados.add(nome);
+      const y = 1966 + Math.floor(r() * 37), mo = 1 + Math.floor(r() * 12), d = 1 + Math.floor(r() * 28);
+      S.eleitores.push({ matricula: String(204100 + i * 7), nome, nascimento: `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`, celular: null, setor: pick(setores), situacao: i >= 54 ? (i >= 58 ? 'Afastado' : 'Férias') : 'Ativo', codigo: null, votou: false, tentativas: 0, bloqueado_ate: null, sessao: null });
+    }
+    const cands = [
+      ['Roberto Alves Teixeira', 'Betão', 'Manutenção', '2009-03-02', 18], ['Carla Mendes Rocha', 'Carla da Qualidade', 'Qualidade', '2016-08-15', 150],
+      ['José Carlos Pereira Júnior', 'Juninho', 'Produção', '2019-01-07', 30], ['Fátima Aparecida Nunes', 'Dona Fátima', 'Expedição', '2004-05-10', 330],
+      ['Marcos Vinícius Lima', 'Marquinhos', 'Logística', '2016-08-15', 210], ['Patrícia Gomes da Silva', 'Paty', 'Administrativo', '2021-10-04', 280]];
+    cands.forEach(([nome, apelido, setor, admissao, hue], i) => S.candidatos.push({ id: 11 + i, nome, apelido, setor, admissao, matricula: null, foto: avatar(hue) }));
+    S.eleicao = { status: 'configuracao', fase: 1, inicio: null, fim: null, aberta_em: null, encerrada_em: null, encerrada_por: null, codigos_gerados_em: null };
+    const L = (ms, ator, acao, det) => S.log.push({ id: ++S.seq, quando: new Date(t0 + ms).toISOString(), ator, acao, detalhe: det || '' });
+    L(-4 * 86400000, 'Administrador do sistema', 'Empresa cadastrada', 'Metalúrgica Exemplo Ltda. · CNPJ 00.000.000/0001-00');
+    L(-3 * 86400000, 'Administrador do sistema', 'Eleitores importados', '60 registros (lista substituída)');
+    L(-3 * 86400000 + 60000, 'Administrador do sistema', 'Candidato cadastrado', '6 candidatos');
+    L(-3 * 86400000 + 120000, 'Administrador do sistema', 'Equipe alterada', 'Presidente e 5 membros da comissão eleitoral cadastrados');
+    if (modo === 'andamento') {
+      S.eleitores.filter(apto).forEach(e => { e.codigo = novoCodigo(); });
+      S.eleicao.codigos_gerados_em = new Date(t0 - 2 * 86400000).toISOString();
+      L(-2 * 86400000, 'Administrador do sistema', 'Códigos gerados', '58 códigos (todos os anteriores invalidados)');
+      const ini = t0 - 15 * 3600000, fim = ini + 24 * 3600000;
+      Object.assign(S.eleicao, { status: 'aberta', fase: 1, inicio: new Date(ini).toISOString(), aberta_em: new Date(ini).toISOString(), fim: new Date(fim).toISOString() });
+      L(-15 * 3600000, 'Marta Ribeiro Lopes', 'Votação aberta', `1º período de 24 horas, até ${fmtDT(new Date(fim).toISOString())}. 58 eleitores aptos.`);
+      const pesos = ['11', '12', '12', '13', '14', '14', '14', '15', '15', '16', 'BRANCO'];
+      S.eleitores.filter(apto).slice(10, 27).forEach(e => { e.votou = true; S.votos.push({ escolha: pick(pesos), fase: 1 }); });
+      L(-14 * 3600000, 'Beatriz Nogueira', 'Código reemitido', 'Matrícula ' + S.eleitores[30].matricula);
+    }
+    save();
+  }
+  S = load();
+  if (!S || S.v !== 1) seed('andamento');
+  api._demo = {
+    reset: modo => seed(modo),
+    agora: () => now(),
+    simular(n) {
+      const E = atualizar(); if (E.status !== 'aberta') throw new Error('Simulação disponível só com a votação aberta.');
+      const livres = S.eleitores.filter(e => apto(e) && !e.votou && e.codigo).slice(8);
+      const ops = S.candidatos.map(k => String(k.id)).concat(['BRANCO']);
+      livres.sort(() => Math.random() - 0.5).slice(0, n).forEach(e => { e.votou = true; S.votos.push({ escolha: ops[Math.floor(Math.random() * ops.length)], fase: E.fase }); });
+      save(); return Math.min(n, livres.length);
+    },
+    avancar() {
+      const E = S.eleicao; if (E.status !== 'aberta') throw new Error('O relógio só avança com a votação aberta.');
+      S.offset += Date.parse(E.fim) - now() + 1000; save(); atualizar();
+    },
+    testadores: () => S.eleitores.filter(e => apto(e) && !e.votou && e.codigo).slice(0, 6).map(e => ({ matricula: e.matricula, nascimento: e.nascimento, codigo: e.codigo, nome: e.nome })),
+    equipe: () => S.equipe.filter(m => m.ativo).map(m => ({ login: m.login, senha: m.senha, perfil: m.perfil, nome: m.nome })),
+    status: () => S.eleicao.status
+  };
+  return api;
+}
+
+const API = DEMO ? makeDemo() : RealAPI;
+
+/* =====================================================================
+   ESTADO DA TELA
+   ===================================================================== */
+const A = {
+  view: 'eleitor', est: null, cands: null, skew: 0,
+  voto: { step: 'login', token: null, nome: '', escolha: null },
+  staff: null, painel: null, tab: 'acomp', codigos: null, editCand: null, editMembro: null, importacao: null
+};
+const agoraSrv = () => Date.now() + A.skew;
+function ajustarRelogio(iso) { if (iso) A.skew = Date.parse(iso) - Date.now(); }
+function aplicarMarca(cfg) {
+  if (cfg && cfg.cor && /^#[0-9a-f]{6}$/i.test(cfg.cor)) document.documentElement.style.setProperty('--brand', cfg.cor);
+}
+function guardarStaff() { try { if (A.staff) sessionStorage.setItem('urnacipa-staff', JSON.stringify(A.staff)); else sessionStorage.removeItem('urnacipa-staff'); } catch (e) { /* indisponível */ } }
+function lerStaff() { try { const t = sessionStorage.getItem('urnacipa-staff'); return t ? JSON.parse(t) : null; } catch (e) { return null; } }
+
+const ICON = {
+  comissao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"></path><path d="M16 4.5a3 3 0 010 6"></path><path d="M18 14.5c1.9.8 3 2.8 3 5.5"></path></svg>'
+};
+/* nav: false = sem botões (prévia do admin); 'cedula' = durante o voto, sem botões */
+function mast(cfg, nav) {
+  cfg = cfg || {};
+  const logo = cfg.logo ? `<div class="mast-logo"><img src="${esc(cfg.logo)}" alt=""></div>` : '';
+  const sub = [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao].filter(Boolean).join(' · ');
+  const atual = A.view;
+  const links = nav ? `<nav class="mast-nav" aria-label="Acessos">
+      <button type="button" class="navbtn solid${atual === 'equipe-login' ? ' on' : ''}" id="go-equipe" ${atual === 'equipe-login' ? 'aria-current="page"' : ''}>${ICON.comissao}<span class="lg">Acesso da comissão eleitoral</span><span class="sm">Comissão eleitoral</span></button>
+    </nav>` : '';
+  return `<header class="mast"><div class="wrap"><button type="button" class="mast-home" id="go-home" ${nav ? '' : 'tabindex="-1" disabled'} aria-label="Página inicial da votação">${logo}<div class="mast-txt"><div class="mast-emp">${esc(cfg.empresa || '')}</div><div class="mast-tit">${esc(sub)}</div></div></button>${links}</div></header>`;
+}
+function bindMast() {
+  const g = $('#go-equipe'); if (g) g.onclick = () => { A.view = A.view === 'equipe-login' ? 'eleitor' : 'equipe-login'; render(); };
+  const h = $('#go-home'); if (h && !h.disabled) h.onclick = () => { A.view = 'eleitor'; render(); };
+}
+
+/* =====================================================================
+   TELAS DO ELEITOR
+   ===================================================================== */
+async function carregarEstado() {
+  A.est = await API.estado(); ajustarRelogio(A.est.agora); aplicarMarca(A.est.config);
+}
+function renderEleitor() {
+  document.body.classList.toggle('has-urna', A.voto.step === 'cedula');
+  const E = A.est; const app = $('#app');
+  if (!E) { app.innerHTML = `<main class="wrap narrow voter"><p class="muted">Carregando…</p></main>`; return; }
+  let corpo = '';
+  if (A.voto.step === 'cedula') corpo = telaCedula();
+  else if (A.voto.step === 'fim') corpo = telaFim();
+  else corpo = telaInicio();
+  app.innerHTML = mast(E.config, A.voto.step !== 'cedula') + corpo + demoBand();
+  bindMast();
+  bindDemoBand();
+  if (A.voto.step === 'cedula') bindCedula(); else if (A.voto.step === 'fim') bindFim(); else bindInicio();
+}
+function linhaStatus(E) {
+  let t = '';
+  if (E.status === 'aberta') t = `Vote até <b>${esc(fmtDT(E.fim))}</b>`;
+  else if (E.status === 'configuracao') t = 'A votação ainda não começou.';
+  else if (E.status === 'aguardando_prorrogacao') t = 'A votação está pausada. A comissão eleitoral vai decidir a prorrogação.';
+  else if (E.status === 'aguardando_encerramento') t = 'O período de votação terminou. Aguarde a apuração.';
+  else t = `Votação encerrada em ${esc(fmtDT(E.resultado && E.resultado.encerrada_em))}.`;
+  return `<div class="status-line">${pill(E.status)}<span class="muted">${t}</span></div>`;
+}
+function telaInicio() {
+  const E = A.est;
+  if (E.status === 'encerrada' && E.resultado) return `<main class="wrap narrow voter">${linhaStatus(E)}${blocoEleitos(E.resultado, true)}</main>`;
+  const aberta = E.status === 'aberta';
+  return `<main class="wrap start">
+    <section class="start-intro">
+      ${linhaStatus(E)}
+      <div class="eyebrow">Identificação do eleitor</div>
+      <h1>Sua vez de escolher quem cuida da segurança de todos</h1>
+      <p class="lead muted">Use os dados da sua cédula de acesso. O voto é secreto: o sistema registra que você votou, mas não em quem.</p>
+      <ol class="passos">
+        <li><b>1</b><span>Tenha em mãos a cédula de acesso entregue pelo RH.</span></li>
+        <li><b>2</b><span>Informe matrícula, data de nascimento e código.</span></li>
+        <li><b>3</b><span>Escolha seu candidato e toque em <b class="kc">CONFIRMA</b>.</span></li>
+      </ol>
+    </section>
+    <div class="card start-form">
+      <form id="f-login" class="stack" novalidate autocomplete="off">
+        <div class="field"><label for="v-mat">Matrícula</label><input class="input" id="v-mat" inputmode="text" autocapitalize="characters" ${aberta ? '' : 'disabled'}></div>
+        <div class="field"><label for="v-nasc">Data de nascimento</label><input class="input" id="v-nasc" inputmode="numeric" placeholder="dd/mm/aaaa" ${aberta ? '' : 'disabled'}></div>
+        <div class="field"><label for="v-cod">Código de acesso</label><input class="input code" id="v-cod" placeholder="XXXX-XXXX" autocapitalize="characters" spellcheck="false" ${aberta ? '' : 'disabled'}><span class="hint">Está na cédula entregue pelo RH. Perdeu? Procure um membro da comissão eleitoral com seu crachá.</span></div>
+        <div id="v-err" class="msg err" role="alert" hidden></div>
+        <button class="btn big" id="v-entrar" ${aberta ? '' : 'disabled'}>Entrar e votar</button>
+      </form>
+    </div>
+  </main>`;
+}
+function bindInicio() {
+  const f = $('#f-login'); if (!f) return;
+  mascaraData($('#v-nasc')); mascaraCodigo($('#v-cod'));
+  f.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const err = $('#v-err'); err.hidden = true;
+    const mat = $('#v-mat').value.trim(), nasc = parseDataBR($('#v-nasc').value), cod = $('#v-cod').value.trim();
+    if (!mat || !nasc || cod.replace(/[^A-Z0-9]/gi, '').length !== 8) { err.textContent = 'Preencha matrícula, data de nascimento (dd/mm/aaaa) e o código de 8 caracteres.'; err.hidden = false; return; }
+    const b = $('#v-entrar'); b.disabled = true; b.textContent = 'Conferindo…';
+    try {
+      const r = await API.eleitorEntrar(mat, nasc, cod);
+      A.cands = await API.candidatos(); // sempre a lista atual: evita cédula antiga depois de reiniciar a eleição
+      A.voto = { step: 'cedula', token: r.token, nome: r.nome, escolha: null, desde: Date.now() };
+      renderEleitor(); window.scrollTo(0, 0);
+    } catch (e) { err.textContent = e.message; err.hidden = false; b.disabled = false; b.textContent = 'Entrar e votar'; }
+  });
+}
+/* distribui os candidatos em linhas equilibradas (ex.: 6 = 3+3, 7 = 4+3) */
+function colunasCedula(n) {
+  const max = n > 8 ? 6 : 5; const linhas = Math.ceil(n / max) || 1;
+  return Math.max(1, Math.ceil(n / linhas));
+}
+function telaCedula() {
+  const cs = A.cands || [];
+  return `<main class="wrap voter">
+    <div class="stack" style="margin-bottom:22px;text-align:center;align-items:center">
+      <div><div class="eyebrow">Cédula eletrônica · ${esc(faseNome(A.est.fase))}</div><h1>Olá, ${esc(primeiroNome(A.voto.nome))}. Escolha seu candidato.</h1></div>
+      <p class="muted">Toque no candidato e depois em <b>CONFIRMA</b>. Para votar em branco, toque em <b>BRANCO</b>.</p>
+    </div>
+    <div class="cand-grid ${cs.length <= 3 ? 'poucos' : cs.length > 8 ? 'muitos' : ''}" style="--cols:${colunasCedula(cs.length)}" role="radiogroup" aria-label="Candidatos">
+      ${cs.map(k => `<button type="button" class="cand" data-id="${esc(k.id)}" aria-pressed="false">
+        ${k.foto ? `<img src="${esc(k.foto)}" alt="">` : `<div class="ph">${esc(iniciais(k.apelido))}</div>`}
+        <div class="cb"><span class="ap">${esc(k.apelido)}</span><span class="nm">${esc(k.nome)}</span><span class="st">${esc(k.setor)}</span></div></button>`).join('')}
+    </div>
+    <div style="margin-top:18px;text-align:center"><button type="button" class="linkbtn" id="b-nulo">Anular meu voto</button></div>
+  </main>
+  <div class="urna-bar"><div class="wrap">
+    <div class="escolha"><span class="eyebrow">Seu voto</span><strong id="sel">Nenhuma escolha</strong></div>
+    <div class="keys"><button type="button" class="key branco" id="k-branco">BRANCO</button><button type="button" class="key corrige" id="k-corrige">CORRIGE</button><button type="button" class="key confirma" id="k-confirma" disabled>CONFIRMA</button></div>
+  </div></div>`;
+}
+function bindCedula() {
+  const marcar = esc0 => {
+    A.voto.escolha = esc0;
+    $$('.cand').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === esc0)));
+    const k = (A.cands || []).find(c => String(c.id) === esc0);
+    $('#sel').textContent = esc0 === 'BRANCO' ? 'Voto em BRANCO' : esc0 === 'NULO' ? 'Voto NULO' : k ? `${k.apelido} · ${k.setor}` : 'Nenhuma escolha';
+    $('#k-confirma').disabled = !esc0;
+  };
+  $$('.cand').forEach(b => b.onclick = () => marcar(b.dataset.id));
+  $('#k-branco').onclick = () => marcar('BRANCO');
+  $('#b-nulo').onclick = () => marcar('NULO');
+  $('#k-corrige').onclick = () => marcar(null);
+  $('#k-confirma').onclick = async () => {
+    const b = $('#k-confirma'); b.disabled = true; b.textContent = 'GRAVANDO…';
+    try {
+      await API.votar(A.voto.token, A.voto.escolha);
+      A.voto = { step: 'fim', token: null, nome: '', escolha: null }; renderEleitor(); window.scrollTo(0, 0);
+    } catch (e) {
+      if (/Opção de voto inválida/.test(e.message)) { // lista de candidatos mudou: recarrega a cédula
+        try { A.cands = await API.candidatos(); } catch (e2) { /* sem conexão */ }
+        A.voto.escolha = null; renderEleitor(); toast('A lista de candidatos foi atualizada. Escolha novamente.'); return;
+      }
+      toast(e.message); b.textContent = 'CONFIRMA'; b.disabled = false;
+      if (/sessão|terminou|já foi/i.test(e.message)) { A.voto = { step: 'login', token: null, nome: '', escolha: null }; await carregarEstado().catch(() => {}); renderEleitor(); }
+    }
+  };
+}
+let fimT;
+function telaFim() {
+  return `<main class="wrap narrow voter"><div class="fim"><div class="stack" style="align-items:center">
+    <div class="fim-word">FIM</div>
+    <h2>Seu voto foi registrado.</h2>
+    <p class="muted">Obrigado por participar da eleição da CIPA. Esta tela volta ao início em alguns segundos.</p>
+    <button class="btn ghost" id="b-volta">Voltar ao início</button></div></div></main>`;
+}
+function bindFim() {
+  const volta = () => { clearTimeout(fimT); A.voto = { step: 'login', token: null, nome: '', escolha: null }; renderEleitor(); };
+  $('#b-volta').onclick = volta; clearTimeout(fimT); fimT = setTimeout(volta, 10000);
+}
+function avisoAdministrativo(R) {
+  if (!R || R.encerramento_tipo !== 'administrativo') return '';
+  return `<div class="msg attn"><b>Encerramento administrativo.</b> A eleição foi encerrada por ${esc(R.encerrada_por)} em ${esc(fmtDT(R.encerrada_em))}, sem a verificação automática de prazo e participação mínima. Justificativa: ${esc(R.justificativa)}</div>`;
+}
+function blocoEleitos(R, publico) {
+  const tit = R.candidatos.filter(c => c.condicao === 'Titular'), sup = R.candidatos.filter(c => c.condicao === 'Suplente');
+  const card = c => `<div class="ccard">${c.foto ? `<img src="${esc(c.foto)}" alt="">` : `<div class="ph">${esc(iniciais(c.apelido))}</div>`}<div class="t"><b>${esc(c.apelido)}</b><span class="small muted">${esc(c.nome)} · ${esc(c.setor)}</span><div class="small num">${c.votos} votos</div></div></div>`;
+  return `<div class="stack">
+    ${publico ? `<div><div class="eyebrow">Resultado oficial</div><h1>Representantes eleitos dos empregados</h1></div>
+    <p class="muted num">${R.votantes} de ${R.aptos} eleitores votaram (${fmtPct(pctN(R.votantes, R.aptos))}).</p>${avisoAdministrativo(R)}` : ''}
+    <div class="stack"><h3>Titulares</h3><div class="ccards">${tit.map(card).join('') || '<p class="muted">Nenhum titular eleito.</p>'}</div></div>
+    <div class="stack"><h3>Suplentes</h3><div class="ccards">${sup.map(card).join('') || '<p class="muted">Nenhum suplente eleito.</p>'}</div></div>
+  </div>`;
+}
+
+/* =====================================================================
+   LOGIN DA EQUIPE
+   ===================================================================== */
+function renderEquipeLogin() {
+  document.body.classList.remove('has-urna');
+  $('#app').innerHTML = mast(A.est && A.est.config, true) + `<main class="wrap narrow voter"><div class="card stack">
+    <div><div class="eyebrow">Comissão eleitoral</div><h1>Acesso da equipe</h1></div>
+    <p class="muted">Presidente, membros da comissão eleitoral e administrador. Para votar, use a tela inicial com o seu código de eleitor.</p>
+    <form id="f-staff" class="stack" novalidate>
+      <div class="field"><label for="s-login">Login</label><input class="input" id="s-login" autocapitalize="none" autocomplete="username"></div>
+      <div class="field"><label for="s-senha">Senha</label><input class="input" id="s-senha" type="password" autocomplete="current-password"></div>
+      <div id="s-err" class="msg err" role="alert" hidden></div>
+      <button class="btn big" id="s-entrar">Entrar no painel</button>
+    </form>
+    <button class="linkbtn" id="s-volta">Voltar para a votação</button>
+  </div></main>` + demoBand();
+  bindDemoBand();
+  bindMast(); $('#s-volta').onclick = () => { A.view = 'eleitor'; render(); };
+  $('#f-staff').addEventListener('submit', async ev => {
+    ev.preventDefault(); const err = $('#s-err'); err.hidden = true; const b = $('#s-entrar'); b.disabled = true;
+    try {
+      const r = await API.equipeEntrar($('#s-login').value, $('#s-senha').value);
+      A.staff = { token: r.token, perfil: r.perfil, nome: r.nome, trocar: !!r.trocar_senha }; A.provisoria = r.trocar_senha ? $('#s-senha').value : null; guardarStaff(); A.tab = 'acomp'; A.view = 'painel'; A.codigos = null;
+      await abrirPainel();
+    } catch (e) { err.textContent = e.message; err.hidden = false; b.disabled = false; }
+  });
+}
+
+/* =====================================================================
+   PAINEL DA COMISSÃO
+   ===================================================================== */
+async function abrirPainel() {
+  if (A.staff && A.staff.trocar) { telaNovaSenha(); return; }
+  try { A.painel = await API.painel(A.staff.token); ajustarRelogio(A.painel.agora); aplicarMarca(A.painel.config); }
+  catch (e) { toast(e.message); A.staff = null; guardarStaff(); A.view = 'equipe-login'; render(); return; }
+  render();
+}
+// Primeiro acesso com senha provisória: a pessoa cria a própria senha antes de usar o painel
+function telaNovaSenha() {
+  document.body.classList.remove('has-urna');
+  const pede = !A.provisoria;
+  $('#app').innerHTML = mast(A.est && A.est.config, false) + `<main class="wrap narrow voter"><div class="card stack">
+    <div><div class="eyebrow">Primeiro acesso</div><h1 style="font-size:1.5rem;margin:.2em 0">Crie a sua senha</h1>
+    <p class="muted">Olá, ${esc(A.staff.nome)}. Você entrou com uma senha provisória entregue pelo administrador. Crie agora uma senha pessoal, que só você vai saber.</p></div>
+    <form id="f-nova" class="stack" novalidate>
+      ${pede ? `<div class="field"><label for="n-prov">Senha provisória</label><input class="input" id="n-prov" type="password" autocomplete="current-password"></div>` : ''}
+      <div class="field"><label for="n-1">Nova senha</label><input class="input" id="n-1" type="password" autocomplete="new-password"><span class="hint">Mínimo de 10 caracteres.</span></div>
+      <div class="field"><label for="n-2">Repita a nova senha</label><input class="input" id="n-2" type="password" autocomplete="new-password"></div>
+      <div class="msg err" id="n-err" hidden></div>
+      <button class="btn big">Salvar e entrar no painel</button>
+    </form>
+    <button class="linkbtn" id="n-sair">Sair</button>
+  </div></main>`;
+  $('#n-sair').onclick = async () => { try { await API.equipeSair(A.staff.token); } catch (e) { /* já expirada */ } A.staff = null; A.provisoria = null; guardarStaff(); A.view = 'eleitor'; render(); };
+  $('#f-nova').addEventListener('submit', async ev => {
+    ev.preventDefault(); const err = $('#n-err'); err.hidden = true;
+    const n1 = $('#n-1').value, n2 = $('#n-2').value;
+    if (n1 !== n2) { err.textContent = 'As duas senhas não são iguais.'; err.hidden = false; return; }
+    try {
+      await API.trocarSenha(A.staff.token, pede ? $('#n-prov').value : A.provisoria, n1);
+      A.staff.trocar = false; A.provisoria = null; guardarStaff(); toast('Senha criada.'); await abrirPainel();
+    } catch (e) { err.textContent = e.message; err.hidden = false; }
+  });
+}
+function abas() {
+  const P = A.painel, p = P.perfil, enc = P.status === 'encerrada';
+  const t = [['acomp', 'Acompanhamento']];
+  if (p === 'admin') t.push(['empresa', 'Empresa'], ['eleitores', 'Eleitores'], ['candidatos', 'Candidatos'], ['equipe', 'Equipe'], ['cedulas', 'Cédulas de acesso']);
+  t.push(['naovotaram', 'Quem não votou']);
+  if (p !== 'admin') t.push(['reemitir', 'Reemitir código']);
+  if (p !== 'mesario') t.push(['registro', 'Registro']);
+  if (enc) t.push(['resultado', 'Resultado']);
+  t.push(['conta', p === 'admin' ? 'Conta e manutenção' : 'Minha conta']);
+  return t;
+}
+function renderPainel() {
+  document.body.classList.remove('has-urna');
+  const P = A.painel; const tabs = abas();
+  if (!tabs.some(t => t[0] === A.tab)) A.tab = 'acomp';
+  $('#app').innerHTML = `
+  <header class="staffbar"><div class="wrap">
+    <div class="mast-txt"><div class="eyebrow">${esc(P.config.empresa)}</div><div style="font-weight:700">${esc(P.config.titulo)}${P.config.gestao ? ' · ' + esc(P.config.gestao) : ''}</div></div>
+    <div class="who"><span id="hdr-status">${pill(P.status)}</span><span class="role">${esc(PERFIL[P.perfil])}</span><span class="small">${esc(P.nome)}</span><button class="btn ghost" id="b-sair" style="min-height:36px;padding:6px 12px">Sair</button></div>
+  </div></header>
+  <div class="wrap"><nav class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="tab" role="tab" data-tab="${k}" aria-selected="${A.tab === k}">${esc(l)}</button>`).join('')}</nav></div>
+  <hr class="tabrule">
+  <main class="wrap painel" id="tabbody"></main>` + demoBand();
+  bindDemoBand();
+  $('#b-sair').onclick = async () => { try { await API.equipeSair(A.staff.token); } catch (e) { /* já expirada */ } A.staff = null; A.painel = null; guardarStaff(); A.view = 'eleitor'; await carregarEstado().catch(() => {}); render(); };
+  $$('.tab').forEach(b => b.onclick = () => { A.tab = b.dataset.tab; A.editCand = null; A.editMembro = null; renderPainel(); });
+  renderAba();
+}
+function renderAba() {
+  const fns = { acomp: abaAcomp, empresa: abaEmpresa, eleitores: abaEleitores, candidatos: abaCandidatos, equipe: abaEquipe, cedulas: abaCedulas, naovotaram: abaNaoVotaram, reemitir: abaReemitir, registro: abaRegistro, resultado: abaResultado, conta: abaConta };
+  (fns[A.tab] || abaAcomp)();
+}
+async function atualizarPainel(forcar) {
+  if (A.view !== 'painel' || !A.staff || A.staff.trocar) return;
+  try {
+    const antes = A.painel && A.painel.status;
+    A.painel = await API.painel(A.staff.token); ajustarRelogio(A.painel.agora);
+    if (antes !== A.painel.status || forcar) renderPainel();
+    else { const h = $('#hdr-status'); if (h) h.innerHTML = pill(A.painel.status); if (A.tab === 'acomp' && !$('.armed')) abaAcomp(); }
+  } catch (e) { if (/Sessão/.test(e.message)) { A.staff = null; guardarStaff(); A.view = 'equipe-login'; render(); toast(e.message); } }
+}
+
+/* ---- Acompanhamento ---- */
+function abaAcomp() {
+  const P = A.painel; const fase = P.fase; const meta = fase === 1 ? 50 : 100 / 3; const metaTxt = fase === 1 ? '50%' : '1/3';
+  const p = pctN(P.votantes, P.aptos); const precisa = Math.max(0, (fase === 1 ? Math.ceil(P.aptos / 2) : Math.ceil(P.aptos / 3)) - P.votantes);
+  const temPeriodo = !!P.fim;
+  const gauge = `<div class="card stack">
+    <div class="row" style="justify-content:space-between">${pill(P.status)}<span class="eyebrow">${temPeriodo ? esc(faseNome(fase)) : 'Antes da abertura'}</span></div>
+    <div class="g-num">${fmtPct(p)}<small>de participação</small></div>
+    <div class="g-bar" aria-hidden="true"><div class="g-fill" style="width:${Math.min(100, p)}%"></div><div class="g-meta${meta > 80 ? ' right' : ''}" style="left:${meta}%"><span>mínimo ${metaTxt}</span></div></div>
+    <dl class="stats">
+      <div><dt>Votaram</dt><dd>${P.votantes}</dd></div>
+      <div><dt>Eleitores aptos</dt><dd>${P.aptos}</dd></div>
+      <div><dt>Faltam para o mínimo</dt><dd>${precisa}</dd></div>
+      <div><dt>${P.status === 'aberta' ? 'Termina em' : 'Período'}</dt><dd data-cd="${esc(P.status === 'aberta' ? P.fim : '')}">${P.status === 'aberta' ? esc(dur(Date.parse(P.fim) - agoraSrv())) : (temPeriodo ? 'concluído' : '—')}</dd></div>
+    </dl>
+    ${temPeriodo ? `<p class="small muted">Início ${esc(fmtDT(P.inicio))} · Fim ${esc(fmtDT(P.fim))}</p>` : ''}
+    <p class="small muted">A contagem de votos por candidato fica oculta para todos até o encerramento.</p>
+  </div>`;
+  const forcar = P.perfil === 'admin' && P.status !== 'encerrada'
+    ? `<div class="card flat stack"><h3>Encerramento administrativo</h3><p class="small muted">Encerra a eleição agora, sem esperar o prazo nem a participação mínima. Exige justificativa e fica registrado na ata.</p><div><button class="btn ghost" id="b-ir-forcado">Ir para o encerramento administrativo</button></div></div>` : '';
+  $('#tabbody').innerHTML = `<div class="over">${gauge}<div class="stack">${cartaoAcao()}${forcar}</div></div>`;
+  bindAcao();
+}
+function cartaoAcao() {
+  const P = A.painel, perf = P.perfil, pr = P.prorrogacao, nec = P.config.confirmacoes_necessarias;
+  const barraConf = pr ? `<div class="confs">${Array.from({ length: nec }, (_, i) => `<span class="${i < pr.confirmacoes.length ? 'on' : ''}"></span>`).join('')}</div>
+    <p class="small"><b>${pr.confirmacoes.length} de ${nec}</b> confirmações${pr.confirmacoes.length ? ': ' + pr.confirmacoes.map(c => esc(c.nome)).join(', ') : ''}</p>` : '';
+  if (P.status === 'configuracao') {
+    const it = [
+      [P.config.empresa && P.config.empresa !== 'Nome da empresa', 'Dados da empresa preenchidos'],
+      [P.aptos > 0, `Eleitores importados (${P.aptos} aptos)`],
+      [P.candidatos > 0, `Candidatos cadastrados (${P.candidatos})`],
+      [!!P.codigos_gerados_em && !P.sem_codigo, 'Códigos de acesso gerados para todos'],
+      [P.mesarios >= nec, `Membros da comissão eleitoral cadastrados (${P.mesarios}, mínimo ${nec})`]];
+    const pronto = it.every(x => x[0]);
+    return `<div class="card stack"><h2>Preparação</h2>
+      <div>${it.map(([ok, t]) => `<div class="check ${ok ? 'ok' : 'no'}"><i>${ok ? '✓' : '!'}</i><span>${esc(t)}</span></div>`).join('')}</div>
+      ${perf === 'presidente' ? `<button class="btn big" id="b-abrir" ${pronto ? '' : 'disabled'}>Abrir votação por ${P.config.duracao_horas} horas</button>
+        <p class="small muted">${pronto ? 'Depois de aberta, eleitores e candidatos ficam bloqueados para alteração.' : 'Complete os itens acima para liberar a abertura.'}</p>`
+        : `<p class="small muted">A abertura é feita pelo presidente da comissão.</p>`}</div>`;
+  }
+  if (P.status === 'aberta') {
+    return `<div class="card stack"><h2>Votação em andamento</h2>
+      <p>O sistema verifica a participação automaticamente às <b>${esc(fmtDT(P.fim))}</b>.</p>
+      <p class="small muted">Se atingir ${P.fase === 1 ? '50%' : '1/3'} dos aptos, o presidente poderá encerrar. Se não, a votação pausa e pede prorrogação. Se todos votarem antes do prazo, o encerramento é liberado na hora.</p>
+      ${perf === 'presidente' ? `<button class="btn big" disabled>Solicitar encerramento</button><p class="small muted">Disponível ao fim do período ou quando todos votarem. O encerramento sempre depende da confirmação dos membros da comissão eleitoral.</p>` : ''}</div>`;
+  }
+  if (P.status === 'aguardando_prorrogacao') {
+    let corpo = `<div class="msg attn"><b>Participação abaixo do mínimo.</b> A votação está pausada e o encerramento está bloqueado. Na prorrogação, o mínimo passa a ser 1/3 dos eleitores aptos.</div>`;
+    if (perf === 'presidente') {
+      corpo += pr ? `<h3>Prorrogação solicitada</h3><p class="small muted">Aguardando os membros da comissão eleitoral. Pedido feito em ${esc(fmtDT(pr.solicitada_em))}.</p>${barraConf}`
+        : `<button class="btn big attn" id="b-prorrogar">Prorrogar por mais ${P.config.duracao_horas}h</button><p class="small muted">A prorrogação só começa depois que ${nec} membros da comissão eleitoral confirmarem no painel deles.</p>`;
+      corpo += `<button class="btn big" disabled>Solicitar encerramento</button>`;
+    } else if (perf === 'mesario') {
+      corpo += pr ? `<h3>Pedido de prorrogação</h3><p class="small">${esc(pr.solicitada_por)} pediu a prorrogação em ${esc(fmtDT(pr.solicitada_em))}.</p>${barraConf}
+        ${pr.eu_confirmei ? `<div class="msg ok">Você já confirmou.</div>` : `<button class="btn big" id="b-confirmar">Confirmar prorrogação</button>`}`
+        : `<p class="small muted">Aguardando o presidente solicitar a prorrogação.</p>`;
+    } else corpo += pr ? barraConf : '';
+    return `<div class="card stack"><h2>Prorrogação</h2>${corpo}</div>`;
+  }
+  if (P.status === 'aguardando_encerramento') {
+    let enc = '';
+    if (perf === 'presidente') enc = pr ? `<h3>Encerramento solicitado</h3><p class="small muted">Aguardando os membros da comissão eleitoral. Pedido feito em ${esc(fmtDT(pr.solicitada_em))}.</p>${barraConf}<p class="small muted">A apuração aparece assim que a última confirmação chegar.</p>`
+      : `<button class="btn big" id="b-encerrar">Solicitar encerramento aos membros da comissão eleitoral</button><p class="small muted">A votação só encerra depois que ${nec} membros da comissão eleitoral confirmarem no painel deles. Faça o encerramento com os representantes presentes; a apuração aparece na hora e gera a ata em PDF.</p>`;
+    else if (perf === 'mesario') enc = pr ? `<h3>Pedido de encerramento</h3><p class="small">${esc(pr.solicitada_por)} pediu o encerramento em ${esc(fmtDT(pr.solicitada_em))}.</p>${barraConf}
+        ${pr.eu_confirmei ? `<div class="msg ok">Você já confirmou.</div>` : `<button class="btn big" id="b-confirmar">Confirmar encerramento</button><p class="small muted">Ao confirmar, você atesta que acompanhou o processo. Sua confirmação fica registrada e sai na ata.</p>`}`
+      : `<p class="small muted">Aguardando o presidente solicitar o encerramento.</p>`;
+    else enc = pr ? barraConf : `<p class="small muted">Aguardando o presidente solicitar o encerramento.</p>`;
+    const destaque = perf === 'mesario' && pr && !pr.eu_confirmei ? ' style="border:2px solid var(--key-confirma)"' : '';
+    return `<div class="card stack"${destaque}><h2>Encerramento</h2>
+      ${P.aptos > 0 && P.votantes >= P.aptos ? `<div class="msg ok"><b>Todos os eleitores aptos votaram (100%).</b> O encerramento foi liberado antes do fim do prazo.</div>` : `<div class="msg ok"><b>Mínimo atingido.</b> O período terminou e a votação pode ser encerrada.</div>`}
+      ${enc}</div>`;
+  }
+  return `<div class="card stack"><h2>Eleição encerrada</h2><p>Encerrada em ${esc(fmtDT(P.encerrada_em))} por ${esc(P.encerrada_por)}.</p>
+    ${P.encerramento_tipo === 'administrativo' ? `<div class="msg attn"><b>Encerramento administrativo.</b> Justificativa: ${esc(P.justificativa)}</div>` : ''}
+    <button class="btn big" id="b-ver-res">Ver resultado e baixar a ata</button></div>`;
+}
+function bindAcao() {
+  const t = A.staff.token;
+  const bf = $('#b-ir-forcado'); if (bf) bf.onclick = () => { A.tab = 'conta'; renderPainel(); setTimeout(() => { const el = $('#card-forcado'); if (el) el.scrollIntoView({ block: 'start' }); }, 50); };
+  const b1 = $('#b-abrir'); if (b1) armar(b1, 'Clique de novo para abrir', async () => { await API.abrir(t); toast('Votação aberta.'); await atualizarPainel(true); });
+  const b2 = $('#b-prorrogar'); if (b2) armar(b2, 'Clique de novo para solicitar', async () => { await API.solicitarProrrogacao(t); toast('Pedido enviado aos membros da comissão eleitoral.'); await atualizarPainel(true); });
+  const b3 = $('#b-confirmar'); if (b3) armar(b3, 'Clique de novo para confirmar', async () => {
+    const r = await API.confirmarPedido(t);
+    if (r.aprovada && r.tipo === 'encerramento') { toast('Encerramento aprovado. Eleição encerrada.'); A.tab = 'resultado'; }
+    else toast(r.aprovada ? 'Prorrogação aprovada. Votação reaberta.' : 'Confirmação registrada.');
+    await atualizarPainel(true);
+  });
+  const b4 = $('#b-encerrar'); if (b4) armar(b4, 'Clique de novo para solicitar', async () => { await API.solicitarEncerramento(t); toast('Pedido de encerramento enviado aos membros da comissão eleitoral.'); await atualizarPainel(true); });
+  const b5 = $('#b-ver-res'); if (b5) b5.onclick = () => { A.tab = 'resultado'; renderPainel(); };
+}
+
+/* ---- Quem não votou ---- */
+function abaNaoVotaram() {
+  $('#tabbody').innerHTML = `<div class="stack">
+    <div><h2>Quem ainda não votou</h2><p class="muted small">Mostra só quem falta votar. Nenhuma informação sobre votos aparece aqui. Cada consulta fica no registro.</p></div>
+    <div class="row"><div class="field" style="flex:1 1 260px"><label for="nv-busca">Buscar por nome, matrícula ou setor</label><input class="input" id="nv-busca" autocomplete="off"></div></div>
+    <p id="nv-total" class="small muted">Carregando…</p>
+    <div class="scroll"><table class="tbl"><thead><tr><th>Nome</th><th>Matrícula</th><th>Setor</th></tr></thead><tbody id="nv-body"></tbody></table></div></div>`;
+  let tm;
+  const carregar = async () => {
+    try {
+      const r = await API.naoVotaram(A.staff.token, $('#nv-busca').value);
+      $('#nv-total').textContent = `${r.total} eleitores aptos ainda não votaram${r.itens.length < r.total ? ` · mostrando ${r.itens.length}` : ''}.`;
+      $('#nv-body').innerHTML = r.itens.map(e => `<tr><td>${esc(e.nome)}</td><td class="mono">${esc(e.matricula)}</td><td>${esc(e.setor)}</td></tr>`).join('') || `<tr><td colspan="3" class="muted">Ninguém encontrado.</td></tr>`;
+    } catch (e) { toast(e.message); }
+  };
+  $('#nv-busca').addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(carregar, 350); });
+  carregar();
+}
+
+/* ---- Reemitir código ---- */
+function abaReemitir() {
+  $('#tabbody').innerHTML = `<div class="stack narrow" style="margin:0">
+    <div><h2>Reemitir código de acesso</h2><p class="muted small">Para quem perdeu a cédula. Confira o crachá e digite a matrícula e o nome completo como estão no cadastro (acentos e maiúsculas não importam). O código anterior deixa de valer na hora.</p></div>
+    <form id="f-re" class="card stack" novalidate>
+      <div class="grid2"><div class="field"><label for="re-mat">Matrícula</label><input class="input" id="re-mat" autocomplete="off"></div>
+      <div class="field"><label for="re-nome">Nome completo</label><input class="input" id="re-nome" autocomplete="off"></div></div>
+      <button class="btn">Emitir novo código</button>
+      <div id="re-out"></div>
+    </form></div>`;
+  $('#f-re').addEventListener('submit', async ev => {
+    ev.preventDefault(); const out = $('#re-out'); const n = $('#re-nome').value.trim();
+    if (!$('#re-mat').value.trim() || n.split(/\s+/).length < 2) { out.innerHTML = `<div class="msg err">Informe a matrícula e o nome completo (nome e sobrenome).</div>`; return; }
+    try {
+      const r = await API.reemitir(A.staff.token, $('#re-mat').value, n);
+      out.innerHTML = `<div class="stack"><p>Novo código para <b>${esc(r.nome)}</b> (matrícula ${esc(r.matricula)}):</p><div class="newcode">${esc(r.codigo)}</div>
+        ${r.bloqueado_ate ? `<div class="msg attn">O acesso deste eleitor está bloqueado por tentativas incorretas. O novo código só funciona depois das ${esc(new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(new Date(r.bloqueado_ate)))}.</div>` : ''}
+        <p class="small muted">Mostre ao eleitor ou anote para ele. O código não volta a aparecer depois que você sair desta tela.${r.reemissoes > 1 ? ` Este é o ${r.reemissoes}º código reemitido para este eleitor.` : ''}</p></div>`;
+      $('#re-mat').value = ''; $('#re-nome').value = '';
+    } catch (e) { out.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+  });
+}
+
+/* ---- Registro ---- */
+async function abaRegistro() {
+  $('#tabbody').innerHTML = `<div class="stack"><div><h2>Registro de atividades</h2><p class="muted small">Tudo o que a equipe e o sistema fizeram, do mais recente para o mais antigo. Votos não aparecem aqui.</p></div><div id="lg" class="muted">Carregando…</div></div>`;
+  try {
+    const L = await API.log(A.staff.token);
+    $('#lg').innerHTML = `<div class="scroll"><table class="tbl"><thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Detalhe</th></tr></thead><tbody>
+      ${L.map(l => `<tr><td class="num" style="white-space:nowrap">${esc(fmtDT(l.quando))}</td><td>${esc(l.ator)}</td><td><b>${esc(l.acao)}</b></td><td class="small">${esc(l.detalhe)}</td></tr>`).join('')}</tbody></table></div>`;
+    $('#lg').classList.remove('muted');
+  } catch (e) { $('#lg').textContent = e.message; }
+}
+
+/* ---- Resultado ---- */
+async function abaResultado() {
+  $('#tabbody').innerHTML = `<p class="muted">Carregando apuração…</p>`;
+  try {
+    const R = await API.resultado(A.staff.token); A.res = R;
+    const total = R.total_votos || 0;
+    $('#tabbody').innerHTML = `<div class="stack">
+      <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Apuração</div><h2>Resultado da eleição</h2></div><div class="row"><button class="btn" id="b-ata">Baixar ata em PDF</button>${A.painel.perfil === 'admin' ? '<button class="btn ghost" id="b-ata-adm">Baixar ata de verificação (administrador)</button>' : ''}</div></div>
+      ${A.painel.perfil === 'admin' ? '<p class="small muted">A ata de verificação é a via de guarda do administrador: traz o resultado integral, a impressão digital eletrônica do resultado, a conferência de consistência e o registro completo de atividades, para comprovação junto à fiscalização ou em processo judicial.</p>' : ''}
+      ${avisoAdministrativo(R)}
+      <dl class="stats">
+        <div><dt>Eleitores aptos</dt><dd>${R.aptos}</dd></div><div><dt>Votantes</dt><dd>${R.votantes}</dd></div>
+        <div><dt>Participação</dt><dd>${fmtPct(pctN(R.votantes, R.aptos))}</dd></div><div><dt>Brancos</dt><dd>${R.brancos}</dd></div><div><dt>Nulos</dt><dd>${R.nulos}</dd></div>
+      </dl>
+      <div class="scroll"><table class="tbl"><thead><tr><th class="r">#</th><th></th><th>Candidato</th><th>Setor</th><th>Admissão</th><th class="r">Votos</th><th class="r">%</th><th>Resultado</th></tr></thead><tbody>
+      ${R.candidatos.map(c => `<tr class="${c.condicao ? 'win' : ''}"><td class="r num">${c.posicao}</td><td>${c.foto ? `<img class="thumb" src="${esc(c.foto)}" alt="">` : ''}</td>
+        <td><b>${esc(c.apelido)}</b><div class="small muted">${esc(c.nome)}</div></td><td>${esc(c.setor)}</td><td class="num">${esc(fmtD(c.admissao))}</td>
+        <td class="r num"><b>${c.votos}</b></td><td class="r num">${fmtPct(pctN(c.votos, total))}</td>
+        <td>${c.condicao === 'Titular' ? '<span class="tag tit">Titular</span>' : c.condicao === 'Suplente' ? '<span class="tag sup">Suplente</span>' : ''}</td></tr>`).join('')}
+      <tr><td></td><td></td><td>Brancos</td><td></td><td></td><td class="r num">${R.brancos}</td><td class="r num">${fmtPct(pctN(R.brancos, total))}</td><td></td></tr>
+      <tr><td></td><td></td><td>Nulos</td><td></td><td></td><td class="r num">${R.nulos}</td><td class="r num">${fmtPct(pctN(R.nulos, total))}</td><td></td></tr>
+      </tbody></table></div>
+      <p class="small muted">Desempate pelo maior tempo de serviço (data de admissão mais antiga). Vagas: ${R.config.vagas_titulares} titulares e ${R.config.vagas_suplentes} suplentes.${R.encerramento_tipo !== 'administrativo' && (R.confirmacoes_encerramento || []).length ? ` Encerrada a pedido de ${esc(R.encerrada_por)}, com a confirmação de ${esc(R.confirmacoes_encerramento.map(c => c.nome).join(', '))}.` : ''}</p>
+      ${blocoEleitos(R, false)}
+    </div>`;
+    const ba = $('#b-ata-adm'); if (ba) ba.onclick = async () => { ba.disabled = true; const t0 = ba.textContent; ba.textContent = 'Gerando PDF…'; try { const L = await API.log(A.staff.token); await baixarAtaAdmin(R, L, A.staff.nome); } catch (e) { toast(e.message); } ba.disabled = false; ba.textContent = t0; };
+    const b = $('#b-ata'); b.onclick = async () => { b.disabled = true; b.textContent = 'Gerando PDF…'; try { await baixarAta(R); } catch (e) { toast(e.message); } b.disabled = false; b.textContent = 'Baixar ata em PDF'; };
+  } catch (e) { $('#tabbody').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+
+/* ---- Empresa ---- */
+function abaEmpresa() {
+  const c = A.painel.config; const travado = A.painel.status !== 'configuracao';
+  A.logoNovo = undefined;
+  $('#tabbody').innerHTML = `<form id="f-emp" class="stack" novalidate>
+    <div><h2>Dados da empresa e regras</h2><p class="muted small">Troque estes dados para usar o sistema em outro cliente. Nome, logo e cores aparecem para os eleitores e na ata.</p></div>
+    <div class="card stack"><h3>Identificação</h3>
+      <div class="grid2">
+        <div class="field"><label for="c-emp">Razão social</label><input class="input" id="c-emp" value="${esc(c.empresa)}"></div>
+        <div class="field"><label for="c-cnpj">CNPJ</label><input class="input" id="c-cnpj" value="${esc(c.cnpj)}"></div>
+      </div>
+      <div class="field"><label for="c-end">Endereço do estabelecimento</label><input class="input" id="c-end" value="${esc(c.endereco)}"></div>
+      <div class="grid2">
+        <div class="field"><label for="c-tit">Título da eleição</label><input class="input" id="c-tit" value="${esc(c.titulo)}"></div>
+        <div class="field"><label for="c-ges">Gestão</label><input class="input" id="c-ges" value="${esc(c.gestao)}" placeholder="2026/2027"></div>
+      </div>
+      <div class="field"><label for="c-url">Endereço do site (impresso nas cédulas)</label><input class="input" id="c-url" value="${esc(c.url_site)}" placeholder="www.cipaflow.com.br/votar"></div>
+      <div class="grid2">
+        <div class="field"><label for="c-cor">Cor da empresa</label><input class="input" id="c-cor" type="color" value="${esc(c.cor)}" style="height:48px;padding:4px"></div>
+        <div class="field"><label for="c-logo">Logo (PNG ou JPG)</label><input class="input" id="c-logo" type="file" accept="image/png,image/jpeg"><button type="button" class="linkbtn" id="c-semlogo">Remover logo</button></div>
+      </div>
+      <div class="preview-mast" id="c-prev">${mast(c)}</div>
+    </div>
+    <div class="card stack"><h3>Regras da eleição</h3>
+      ${travado ? `<div class="msg info">As regras ficam bloqueadas depois que a votação é aberta.</div>` : ''}
+      <div class="grid2">
+        <div class="field"><label for="c-vt">Vagas de titulares (eleitos)</label><input class="input" id="c-vt" type="number" min="1" max="50" value="${c.vagas_titulares}" ${travado ? 'disabled' : ''}><span class="hint">Conforme o dimensionamento do Quadro I da NR-5.</span></div>
+        <div class="field"><label for="c-vs">Vagas de suplentes</label><input class="input" id="c-vs" type="number" min="0" max="50" value="${c.vagas_suplentes}" ${travado ? 'disabled' : ''}></div>
+        <div class="field"><label for="c-dur">Duração de cada período (horas)</label><input class="input" id="c-dur" type="number" min="1" max="168" value="${c.duracao_horas}" ${travado ? 'disabled' : ''}></div>
+        <div class="field"><label for="c-conf">Confirmações de membros da comissão eleitoral para prorrogar e encerrar</label><input class="input" id="c-conf" type="number" min="1" value="${c.confirmacoes_necessarias}" ${travado ? 'disabled' : ''}></div>
+      </div>
+    </div>
+    <div class="row"><button class="btn" id="c-salvar">Salvar alterações</button></div>
+  </form>`;
+  const prev = () => { $('#c-prev').innerHTML = mast({ empresa: $('#c-emp').value, titulo: $('#c-tit').value, gestao: $('#c-ges').value, logo: A.logoNovo === undefined ? c.logo : A.logoNovo }); $('#c-prev .mast').style.background = $('#c-cor').value; };
+  ['c-emp', 'c-tit', 'c-ges', 'c-cor'].forEach(id => $('#' + id).addEventListener('input', prev));
+  $('#c-logo').addEventListener('change', async ev => { const f = ev.target.files[0]; if (!f) return; try { A.logoNovo = await lerImagem(f, 400, false); prev(); } catch (e) { toast(e.message); } });
+  $('#c-semlogo').onclick = () => { A.logoNovo = null; prev(); };
+  $('#f-emp').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const cfg = { empresa: $('#c-emp').value.trim(), cnpj: $('#c-cnpj').value.trim(), endereco: $('#c-end').value.trim(), titulo: $('#c-tit').value.trim(), gestao: $('#c-ges').value.trim(), url_site: $('#c-url').value.trim(), cor: $('#c-cor').value };
+    if (A.logoNovo !== undefined) cfg.logo = A.logoNovo;
+    if (!travado) Object.assign(cfg, { vagas_titulares: +$('#c-vt').value, vagas_suplentes: +$('#c-vs').value, duracao_horas: +$('#c-dur').value, confirmacoes_necessarias: +$('#c-conf').value });
+    try { await API.salvarConfig(A.staff.token, cfg); toast('Dados salvos.'); await atualizarPainel(true); } catch (e) { toast(e.message); }
+  });
+}
+
+/* ---- Eleitores ---- */
+async function abaEleitores() {
+  const travado = A.painel.status !== 'configuracao';
+  $('#tabbody').innerHTML = `<p class="muted">Carregando…</p>`;
+  let R; try { R = await API.resumoEleitores(A.staff.token); } catch (e) { $('#tabbody').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; return; }
+  const aptas = A.painel.config.situacoes_aptas || [];
+  $('#tabbody').innerHTML = `<div class="stack">
+    <div><h2>Eleitores</h2><p class="muted small">A lista vem da planilha do RH. A matrícula identifica cada pessoa: importar de novo atualiza quem já existe.</p></div>
+    <dl class="stats"><div><dt>Cadastrados</dt><dd>${R.total}</dd></div><div><dt>Aptos a votar</dt><dd>${R.aptos}</dd></div><div><dt>Aptos sem código</dt><dd>${R.sem_codigo}</dd></div></dl>
+    <div class="card stack"><h3>Quem pode votar</h3>
+      <p class="small muted">Marque as situações cadastrais que podem votar. Sem nenhuma marcada, todos votam.</p>
+      <div class="sitlist">${R.situacoes.map(s => `<label><input type="checkbox" class="sit" value="${esc(s.situacao)}" ${aptas.includes(s.situacao) ? 'checked' : ''} ${travado ? 'disabled' : ''}> ${esc(s.situacao)} <span class="muted num">(${s.total})</span></label>`).join('') || '<span class="muted small">Importe a planilha para ver as situações.</span>'}</div>
+      ${travado || !R.situacoes.length ? '' : `<div><button class="btn ghost" id="b-sit">Salvar situações aptas</button></div>`}
+    </div>
+    <div class="card stack"><h3>Importar planilha</h3>
+      ${travado ? `<div class="msg info">A lista fica bloqueada depois que a votação é aberta.</div>` : `
+      <p class="small muted">Colunas aceitas: <b>Nome, Matrícula, Data de Nascimento, Setor, Situação</b> e, opcionalmente, <b>Celular</b>. Formatos .xlsx, .xls ou .csv.</p>
+      <div class="row"><button class="btn ghost" id="b-modelo">Baixar planilha modelo</button></div>
+      <div class="field"><label for="imp-file">Arquivo da planilha</label><input class="input" type="file" id="imp-file" accept=".xlsx,.xls,.csv"></div>
+      <div id="imp-out"></div>`}
+    </div></div>`;
+  const bs = $('#b-sit'); if (bs) bs.onclick = async () => {
+    try { await API.salvarConfig(A.staff.token, { situacoes_aptas: $$('.sit').filter(x => x.checked).map(x => x.value) }); toast('Situações salvas. Gere os códigos novamente se a lista de aptos mudou.'); await atualizarPainel(); abaEleitores(); } catch (e) { toast(e.message); }
+  };
+  const bm = $('#b-modelo'); if (bm) bm.onclick = baixarModelo;
+  const fi = $('#imp-file'); if (fi) fi.addEventListener('change', async ev => { const f = ev.target.files[0]; if (f) await lerPlanilha(f); });
+}
+const normKey = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+const MAPA = { nome: 'nome', nomecompleto: 'nome', matricula: 'matricula', registro: 'matricula', datadenascimento: 'nascimento', nascimento: 'nascimento', datanascimento: 'nascimento', dtnascimento: 'nascimento', celular: 'celular', telefone: 'celular', setor: 'setor', departamento: 'setor', area: 'setor', situacao: 'situacao', status: 'situacao' };
+function dataPlanilha(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number' && window.XLSX) { const d = XLSX.SSF.parse_date_code(v); if (d && d.y > 1900) return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`; return null; }
+  const s = String(v).trim();
+  const br = parseDataBR(s); if (br) return br;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return null;
+}
+async function lerPlanilha(file) {
+  const out = $('#imp-out'); out.innerHTML = `<p class="muted small">Lendo planilha…</p>`;
+  try {
+    await loadScript(LIB.xlsx);
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const linhas = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' });
+    const ok = [], erros = [], vistos = new Set();
+    linhas.forEach((l, i) => {
+      const r = {}; Object.keys(l).forEach(k => { const c = MAPA[normKey(k)]; if (c) r[c] = l[k]; });
+      if (!String(r.nome || '').trim() && !String(r.matricula || '').trim()) return;
+      const mat = typeof r.matricula === 'number' ? String(Math.round(r.matricula)) : String(r.matricula || '').trim();
+      const nasc = dataPlanilha(r.nascimento);
+      const prob = [];
+      if (!String(r.nome || '').trim()) prob.push('sem nome');
+      if (!mat) prob.push('sem matrícula');
+      if (!nasc) prob.push('data de nascimento inválida');
+      if (mat && vistos.has(mat)) prob.push('matrícula repetida');
+      if (prob.length) { erros.push({ linha: i + 2, nome: r.nome, prob: prob.join(', ') }); return; }
+      vistos.add(mat);
+      ok.push({ matricula: mat, nome: String(r.nome).trim(), nascimento: nasc, celular: r.celular === '' || r.celular == null ? null : String(typeof r.celular === 'number' ? Math.round(r.celular) : r.celular).trim(), setor: String(r.setor || '').trim(), situacao: String(r.situacao || '').trim() || 'Ativo' });
+    });
+    A.importacao = ok;
+    out.innerHTML = `<div class="stack">
+      <div class="msg ${erros.length ? 'attn' : 'ok'}"><b>${ok.length}</b> linhas prontas para importar${erros.length ? ` · <b>${erros.length}</b> com problema (não serão importadas)` : ''}.</div>
+      ${erros.length ? `<div class="scroll"><table class="tbl"><thead><tr><th>Linha</th><th>Nome</th><th>Problema</th></tr></thead><tbody>${erros.slice(0, 30).map(e => `<tr><td class="num">${e.linha}</td><td>${esc(e.nome)}</td><td>${esc(e.prob)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${ok.length ? `<div class="row"><button class="btn" id="b-imp-sub">Substituir a lista atual por estas ${ok.length}</button><button class="btn ghost" id="b-imp-add">Adicionar ou atualizar</button></div>
+      <p class="small muted">Substituir apaga os eleitores atuais e exige gerar os códigos de novo.</p>` : ''}</div>`;
+    const go = async sub => {
+      const L = A.importacao; const tam = 500;
+      try {
+        for (let i = 0; i < L.length; i += tam) { out.querySelector('.msg').textContent = `Importando ${Math.min(i + tam, L.length)} de ${L.length}…`; await API.importarEleitores(A.staff.token, L.slice(i, i + tam), sub && i === 0); }
+        toast(`${L.length} eleitores importados.`); A.importacao = null; await atualizarPainel(); abaEleitores();
+      } catch (e) { toast(e.message); }
+    };
+    const b1 = $('#b-imp-sub'); if (b1) armar(b1, 'Clique de novo para substituir', () => go(true));
+    const b2 = $('#b-imp-add'); if (b2) b2.onclick = () => go(false);
+  } catch (e) { out.innerHTML = `<div class="msg err">${esc(e.message || 'Não foi possível ler a planilha.')}</div>`; }
+}
+async function baixarModelo() {
+  try {
+    await loadScript(LIB.xlsx);
+    const ws = XLSX.utils.aoa_to_sheet([['Nome', 'Matrícula', 'Data de Nascimento', 'Setor', 'Situação', 'Celular'],
+      ['Exemplo da Silva Primeiro', '100001', '15/03/1985', 'Produção', 'Ativo', '11900000001'],
+      ['Exemplo de Souza Segundo', '100002', '02/11/1992', 'Manutenção', 'Férias', ''],
+      ['Exemplo Pereira Terceiro', '100003', '28/07/1979', 'Logística', 'Afastado', '']]);
+    ws['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 12 }, { wch: 14 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Eleitores');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    await salvarArquivo('modelo-eleitores-cipa.xlsx', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  } catch (e) { toast(e.message); }
+}
+
+/* ---- Candidatos ---- */
+async function abaCandidatos() {
+  const travado = A.painel.status !== 'configuracao';
+  const cs = await API.candidatos(A.staff.token).catch(() => []);
+  const k = A.editCand;
+  A.fotoNova = undefined;
+  $('#tabbody').innerHTML = `<div class="stack">
+    <div><h2>Candidatos</h2><p class="muted small">Foto, nome, apelido e setor aparecem na cédula. A data de admissão serve para o desempate (maior tempo de serviço).</p></div>
+    ${travado ? `<div class="msg info">Os candidatos ficam bloqueados depois que a votação é aberta.</div>` : ''}
+    <div class="ccards">${cs.map(c => `<div class="ccard">${c.foto ? `<img src="${esc(c.foto)}" alt="">` : `<div class="ph">${esc(iniciais(c.apelido))}</div>`}
+      <div class="t"><b>${esc(c.apelido)}</b><span class="small muted">${esc(c.nome)}</span><div class="small">${esc(c.setor)} · admissão ${esc(fmtD(c.admissao))}</div>
+      ${travado ? '' : `<div class="row" style="gap:12px"><button class="linkbtn" data-ed="${c.id}">Editar</button><button class="linkbtn" data-del="${c.id}">Excluir</button></div>`}</div></div>`).join('') || '<p class="muted">Nenhum candidato cadastrado.</p>'}</div>
+    ${travado ? '' : `<form id="f-cand" class="card stack" novalidate>
+      <h3>${k ? 'Editar candidato' : 'Novo candidato'}</h3>
+      <div class="grid2">
+        <div class="field"><label for="k-nome">Nome completo</label><input class="input" id="k-nome" value="${esc(k ? k.nome : '')}"></div>
+        <div class="field"><label for="k-ap">Apelido (como aparece na cédula)</label><input class="input" id="k-ap" value="${esc(k ? k.apelido : '')}"></div>
+        <div class="field"><label for="k-set">Setor</label><input class="input" id="k-set" value="${esc(k ? k.setor : '')}"></div>
+        <div class="field"><label for="k-adm">Data de admissão</label><input class="input" id="k-adm" type="date" value="${esc(k && k.admissao ? String(k.admissao).slice(0, 10) : '')}"></div>
+        <div class="field"><label for="k-mat">Matrícula (opcional)</label><input class="input" id="k-mat" value="${esc(k && k.matricula ? k.matricula : '')}"></div>
+        <div class="field"><label for="k-foto">Foto</label><input class="input" id="k-foto" type="file" accept="image/png,image/jpeg"><span class="hint">Cortada em quadrado automaticamente.</span></div>
+      </div>
+      <div class="row"><button class="btn">${k ? 'Salvar alterações' : 'Cadastrar candidato'}</button>${k ? '<button type="button" class="btn ghost" id="k-cancel">Cancelar</button>' : ''}</div>
+    </form>`}</div>`;
+  $$('[data-ed]').forEach(b => b.onclick = () => { A.editCand = cs.find(c => String(c.id) === b.dataset.ed); abaCandidatos(); });
+  $$('[data-del]').forEach(b => armar(b, 'Confirmar exclusão', async () => { await API.excluirCandidato(A.staff.token, +b.dataset.del); toast('Candidato excluído.'); await atualizarPainel(); abaCandidatos(); }));
+  const kc = $('#k-cancel'); if (kc) kc.onclick = () => { A.editCand = null; abaCandidatos(); };
+  const kf = $('#k-foto'); if (kf) kf.addEventListener('change', async ev => { const f = ev.target.files[0]; if (!f) return; try { A.fotoNova = await lerImagem(f, 400, true); toast('Foto pronta. Salve para gravar.'); } catch (e) { toast(e.message); } });
+  const f = $('#f-cand'); if (f) f.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const d = { id: k ? k.id : null, nome: $('#k-nome').value, apelido: $('#k-ap').value, setor: $('#k-set').value, admissao: $('#k-adm').value || null, matricula: $('#k-mat').value };
+    if (A.fotoNova !== undefined) d.foto = A.fotoNova;
+    try { await API.salvarCandidato(A.staff.token, d); toast(k ? 'Candidato atualizado.' : 'Candidato cadastrado.'); A.editCand = null; await atualizarPainel(); abaCandidatos(); } catch (e) { toast(e.message); }
+  });
+}
+
+/* ---- Equipe ---- */
+async function abaEquipe() {
+  let L; try { L = await API.listarEquipe(A.staff.token); } catch (e) { $('#tabbody').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; return; }
+  const m = A.editMembro; const nec = A.painel.config.confirmacoes_necessarias; const nm = L.filter(x => x.perfil === 'mesario').length;
+  $('#tabbody').innerHTML = `<div class="stack">
+    <div><h2>Equipe da eleição</h2><p class="muted small">Membros da comissão eleitoral acompanham a participação, veem quem não votou e confirmam prorrogações e o encerramento. Eles também votam, com o próprio código de eleitor.</p></div>
+    ${['aberta', 'aguardando_prorrogacao', 'aguardando_encerramento'].includes(A.painel.status) ? `<div class="msg info">Com a votação em andamento, a equipe fica travada: não é possível criar acessos nem mudar nome, login ou perfil. Para quem esqueceu a senha ou foi bloqueado, use <b>Desbloquear</b> ou <b>Senha provisória</b>, depois de conferir pessoalmente quem está pedindo. Essas ações saem na ata.</div>` : ''}
+    <div id="m-prov"></div>
+    <div class="msg ${nm >= nec ? 'ok' : 'attn'}">${nm} membros da comissão eleitoral cadastrados, sem limite de quantidade. Prorrogação e encerramento precisam de ${nec} confirmações (altere em Empresa → Regras).</div>
+    <div class="scroll"><table class="tbl"><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th></th></tr></thead><tbody>
+      ${L.map(x => `<tr><td>${esc(x.nome)}${x.bloqueado_ate ? `<div class="small" style="color:var(--err,#b42318)">Bloqueado até ${esc(new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(new Date(x.bloqueado_ate)))}</div>` : ''}${x.trocar_senha ? '<div class="small muted">Aguardando criar a senha pessoal</div>' : ''}</td><td class="mono">${esc(x.login)}</td><td>${esc(PERFIL[x.perfil])}</td><td class="r" style="white-space:nowrap">${x.id === A.painel.id || x.login === A.painel.login ? '<span class="small muted">você</span>' : `${x.bloqueado_ate ? `<button class="linkbtn" data-md="${x.id}">Desbloquear</button> &nbsp; ` : ''}<button class="linkbtn" data-mp="${x.id}">Senha provisória</button> &nbsp; <button class="linkbtn" data-me="${x.id}">Editar</button> &nbsp; <button class="linkbtn" data-mr="${x.id}">Remover</button>`}</td></tr>`).join('')}
+    </tbody></table></div>
+    <form id="f-mem" class="card stack" novalidate><h3>${m ? 'Editar acesso' : 'Novo acesso'}</h3>
+      <div class="grid2">
+        <div class="field"><label for="m-nome">Nome</label><input class="input" id="m-nome" value="${esc(m ? m.nome : '')}"></div>
+        <div class="field"><label for="m-login">Login</label><input class="input" id="m-login" autocapitalize="none" value="${esc(m ? m.login : '')}"></div>
+        <div class="field"><label for="m-perfil">Perfil</label><select class="input" id="m-perfil">${['mesario', 'presidente', 'admin'].map(p => `<option value="${p}" ${(m ? m.perfil : 'mesario') === p ? 'selected' : ''}>${PERFIL[p]}</option>`).join('')}</select></div>
+        <div class="field"><label for="m-senha">${m ? 'Nova senha (deixe em branco para manter)' : 'Senha inicial'}</label><input class="input" id="m-senha" type="text" autocomplete="off"><span class="hint">Mínimo de 10 caracteres. Peça para a pessoa trocar no primeiro acesso.</span></div>
+      </div>
+      <div class="row"><button class="btn">${m ? 'Salvar' : 'Criar acesso'}</button>${m ? '<button type="button" class="btn ghost" id="m-cancel">Cancelar</button>' : ''}</div>
+    </form></div>`;
+  $$('[data-me]').forEach(b => b.onclick = () => { A.editMembro = L.find(x => String(x.id) === b.dataset.me); abaEquipe(); });
+  $$('[data-mr]').forEach(b => armar(b, 'Confirmar', async () => { await API.excluirMembro(A.staff.token, +b.dataset.mr); toast('Acesso removido.'); await atualizarPainel(); abaEquipe(); }));
+  $$('[data-md]').forEach(b => armar(b, 'Confirmar', async () => { await API.desbloquearMembro(A.staff.token, +b.dataset.md); toast('Acesso desbloqueado.'); abaEquipe(); }));
+  $$('[data-mp]').forEach(b => armar(b, 'Gerar senha', async () => {
+    const r = await API.senhaProvisoria(A.staff.token, +b.dataset.mp); await abaEquipe();
+    const box = $('#m-prov'); box.innerHTML = `<div class="card stack" role="status"><p>Senha provisória de <b>${esc(r.nome)}</b> (login <span class="mono">${esc(r.login)}</span>):</p><div class="newcode">${esc(r.senha)}</div>
+      <p class="small muted">Entregue pessoalmente. No primeiro acesso, a pessoa cria a própria senha. Esta senha não volta a aparecer; a senha anterior deixou de valer e o registro fica na ata.</p></div>`;
+    box.scrollIntoView({ block: 'center' });
+  }));
+  const mc = $('#m-cancel'); if (mc) mc.onclick = () => { A.editMembro = null; abaEquipe(); };
+  $('#f-mem').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    try { await API.salvarMembro(A.staff.token, { id: m ? m.id : null, nome: $('#m-nome').value, login: $('#m-login').value, perfil: $('#m-perfil').value, senha: $('#m-senha').value }); toast('Acesso salvo.'); A.editMembro = null; await atualizarPainel(); abaEquipe(); } catch (e) { toast(e.message); }
+  });
+}
+
+/* ---- Cédulas ---- */
+function abaCedulas() {
+  const P = A.painel; const travado = P.status !== 'configuracao';
+  const C = A.codigos;
+  $('#tabbody').innerHTML = `<div class="stack">
+    <div><h2>Cédulas de acesso</h2><p class="muted small">Cada eleitor apto recebe um código único de 8 caracteres. O banco guarda só uma versão embaralhada: o texto do código aparece uma única vez, aqui, para você baixar as cédulas.</p></div>
+    <dl class="stats"><div><dt>Eleitores aptos</dt><dd>${P.aptos}</dd></div><div><dt>Aptos sem código</dt><dd>${P.sem_codigo}</dd></div><div><dt>Últimos códigos</dt><dd style="font-size:1rem">${esc(P.codigos_gerados_em ? fmtDT(P.codigos_gerados_em) : 'não gerados')}</dd></div></dl>
+    ${travado ? `<div class="msg info">A votação já foi aberta. Para quem perdeu a cédula, o membro da comissão eleitoral emite um novo código individual.</div>` : `
+    <div class="card stack"><h3>Gerar códigos</h3>
+      <div class="row">
+        <button class="btn" id="b-gerar-todos" ${P.aptos ? '' : 'disabled'}>${P.codigos_gerados_em ? 'Gerar de novo para todos' : 'Gerar códigos para todos'}</button>
+        ${P.codigos_gerados_em && P.sem_codigo ? `<button class="btn ghost" id="b-gerar-novos">Gerar só para os ${P.sem_codigo} sem código</button>` : ''}
+      </div>
+      ${P.codigos_gerados_em ? `<p class="small muted">Gerar de novo para todos invalida todas as cédulas já impressas.</p>` : ''}
+    </div>`}
+    ${C ? `<div class="card stack" style="border:2px solid var(--attn-line)"><h3>${C.length} códigos prontos</h3>
+      <div class="msg attn">Baixe as cédulas agora. Depois que você sair desta tela, os códigos não podem ser exibidos de novo.</div>
+      <div class="row"><button class="btn" id="b-ced-pdf">Baixar cédulas (PDF, 8 por folha)</button><button class="btn ghost" id="b-rh-pdf">Baixar lista para o RH (nome e código)</button><button class="btn ghost" id="b-ent-pdf">Baixar lista de entrega com assinatura</button></div>
+      <p class="small muted">Tudo ordenado por setor e nome. A lista para o RH traz nome completo, matrícula, setor e código, para envio aos eleitores; é confidencial. A lista de entrega não mostra os códigos.</p></div>` : ''}
+  </div>`;
+  const gerar = async so => { const r = await API.gerarCodigos(A.staff.token, so); A.codigos = r.codigos; toast(`${r.codigos.length} códigos gerados.`); await atualizarPainel(); abaCedulas(); };
+  const b1 = $('#b-gerar-todos'); if (b1) { if (P.codigos_gerados_em) armar(b1, 'Clique de novo: invalida as cédulas atuais', () => gerar(false)); else b1.onclick = () => gerar(false).catch(e => toast(e.message)); }
+  const b2 = $('#b-gerar-novos'); if (b2) b2.onclick = () => gerar(true).catch(e => toast(e.message));
+  const b3 = $('#b-ced-pdf'); if (b3) b3.onclick = async () => { b3.disabled = true; b3.textContent = 'Gerando PDF…'; try { await baixarCedulas(C, P.config); } catch (e) { toast(e.message); } b3.disabled = false; b3.textContent = 'Baixar cédulas (PDF, 8 por folha)'; };
+  const b5 = $('#b-rh-pdf'); if (b5) b5.onclick = async () => { b5.disabled = true; try { await baixarListaRH(C, P.config); } catch (e) { toast(e.message); } b5.disabled = false; };
+  const b4 = $('#b-ent-pdf'); if (b4) b4.onclick = async () => { try { await baixarListaEntrega(C, P.config); } catch (e) { toast(e.message); } };
+}
+
+/* ---- Conta e manutenção ---- */
+function abaConta() {
+  const P = A.painel; const podeReiniciar = ['configuracao', 'encerrada'].includes(P.status);
+  $('#tabbody').innerHTML = `<div class="stack narrow" style="margin:0">
+    <form id="f-senha" class="card stack" novalidate><h3>Trocar minha senha</h3>
+      <div class="field"><label for="p-atual">Senha atual</label><input class="input" id="p-atual" type="password" autocomplete="current-password"></div>
+      <div class="field"><label for="p-nova">Nova senha</label><input class="input" id="p-nova" type="password" autocomplete="new-password"><span class="hint">Mínimo de 10 caracteres.</span></div>
+      <div><button class="btn">Trocar senha</button></div></form>
+    ${P.perfil === 'admin' && P.status !== 'encerrada' ? `<div class="card stack" id="card-forcado" style="border-color:var(--attn-line)"><h3>Encerramento administrativo</h3>
+      <p class="small">Encerra a eleição <b>imediatamente</b>, em qualquer etapa, sem verificar o prazo nem a participação mínima da NR-5. A apuração é liberada na hora com os votos já registrados.</p>
+      <div class="msg attn small">Use só em situação excepcional (falha, paralisação, decisão da comissão). A justificativa, o seu nome e o horário saem destacados na ata e no registro.</div>
+      <div class="field"><label for="f-just">Justificativa</label><textarea class="input" id="f-just" rows="3" placeholder="Ex.: decisão da comissão eleitoral em reunião de 14/10, registrada em ata própria."></textarea></div>
+      <div class="field"><label for="f-conf">Digite ENCERRAR para confirmar</label><input class="input" id="f-conf" autocomplete="off"></div>
+      <div><button class="btn danger" id="b-forcar">Encerrar eleição agora</button></div></div>` : ''}
+    ${P.perfil === 'admin' ? `<div class="card stack"><h3>Reiniciar para um novo cliente</h3>
+      <p class="small muted">Apaga <b>tudo</b>: dados da empresa (razão social, CNPJ, logo, cor e regras), presidente e membros da comissão eleitoral, eleitores, candidatos, votos e o registro. Só os acessos de administrador continuam. Não há como desfazer: baixe e guarde as duas atas antes.</p>
+      ${podeReiniciar ? `<div class="field"><label for="r-conf">Digite REINICIAR para confirmar</label><input class="input" id="r-conf" autocomplete="off"></div><div><button class="btn danger" id="b-reiniciar">Apagar tudo e começar do zero</button></div>`
+        : `<div class="msg info">Disponível antes da abertura ou depois do encerramento.</div>`}</div>` : ''}
+  </div>`;
+  $('#f-senha').addEventListener('submit', async ev => { ev.preventDefault(); try { await API.trocarSenha(A.staff.token, $('#p-atual').value, $('#p-nova').value); toast('Senha alterada.'); $('#p-atual').value = ''; $('#p-nova').value = ''; } catch (e) { toast(e.message); } });
+  const bfz = $('#b-forcar'); if (bfz) bfz.onclick = async () => {
+    bfz.disabled = true;
+    try { await API.encerrarForcado(A.staff.token, $('#f-conf').value.trim(), $('#f-just').value); toast('Eleição encerrada administrativamente.'); A.tab = 'resultado'; await atualizarPainel(true); }
+    catch (e) { toast(e.message); bfz.disabled = false; }
+  };
+  const br = $('#b-reiniciar'); if (br) br.onclick = async () => { try { await API.reiniciar(A.staff.token, $('#r-conf').value.trim()); toast('Tudo apagado. Comece cadastrando a nova empresa.'); A.codigos = null; A.cands = null; A.tab = 'empresa'; await atualizarPainel(true); aplicarMarca(A.painel.config); } catch (e) { toast(e.message); } };
+}
+
+/* =====================================================================
+   DOCUMENTOS PDF
+   ===================================================================== */
+const hex2rgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); const n = parseInt(m ? m[1] : '0f6b4f', 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const imgFmt = d => /^data:image\/png/i.test(d) ? 'PNG' : 'JPEG';
+const slug = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+async function pdfKit(cfg) {
+  await loadScript(LIB.jspdf);
+  const d = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  const K = { d, W: 210, H: 297, M: 18, y: 18, cor: hex2rgb(cfg.cor) };
+  K.CW = K.W - 2 * K.M;
+  K.T = (txt, x, yy, o = {}) => { d.setFont(o.f || 'helvetica', o.b ? 'bold' : 'normal'); d.setFontSize(o.s || 10); d.setTextColor(...(o.c || [20, 32, 27])); d.text(txt, x, yy, o.opt || {}); };
+  K.quebra = h => { if (K.y + h > K.H - 22) { d.addPage(); K.y = K.M; return true; } return false; };
+  K.cabecalho = (titulo, subtitulo) => {
+    let lx = K.M;
+    if (cfg.logo) { try { const p = d.getImageProperties(cfg.logo); const h = 16, w = Math.min(40, h * p.width / p.height); d.addImage(cfg.logo, imgFmt(cfg.logo), K.M, K.y, w, h); lx = K.M + w + 5; } catch (e) { /* logo inválido */ } }
+    K.T(cfg.empresa || '', lx, K.y + 5.5, { b: 1, s: 13 });
+    const sub = [cfg.cnpj && 'CNPJ ' + cfg.cnpj, cfg.endereco].filter(Boolean).join(' · ');
+    if (sub) K.T(d.splitTextToSize(sub, K.W - K.M - lx), lx, K.y + 11, { s: 8.5, c: [86, 103, 95] });
+    K.y += 20; d.setDrawColor(...K.cor); d.setLineWidth(0.8); d.line(K.M, K.y, K.W - K.M, K.y); K.y += 9;
+    K.T(titulo, K.M, K.y, { b: 1, s: 15 }); K.y += 6;
+    if (subtitulo) { K.T(subtitulo, K.M, K.y, { s: 10, c: [86, 103, 95] }); K.y += 4; }
+    K.y += 5;
+  };
+  K.secao = t => { K.quebra(16); K.T(t.toUpperCase(), K.M, K.y, { b: 1, s: 9.5, c: K.cor }); K.y += 2.5; d.setDrawColor(210, 220, 214); d.setLineWidth(0.2); d.line(K.M, K.y, K.W - K.M, K.y); K.y += 5.5; };
+  K.paragrafo = (t, o = {}) => { d.setFont('helvetica', 'normal'); d.setFontSize(o.s || 10); const ls = d.splitTextToSize(t, K.CW); ls.forEach(l => { K.quebra(6); K.T(l, K.M, K.y, o); K.y += (o.s || 10) * 0.45; }); K.y += 2; };
+  K.tabela = (cols, rows) => {
+    const pad = 2, lh = 3.75;
+    const tint = K.cor.map(v => Math.round(v + (255 - v) * 0.86));
+    const head = () => { d.setFillColor(...tint); d.rect(K.M, K.y, K.CW, 7, 'F'); let x = K.M; cols.forEach(c => { K.T(c.t, c.a === 'r' ? x + c.w - pad : x + pad, K.y + 4.7, { b: 1, s: 8, opt: c.a === 'r' ? { align: 'right' } : {} }); x += c.w; }); K.y += 7; };
+    K.quebra(16); head();
+    rows.forEach((r, i) => {
+      d.setFont('helvetica', r.b ? 'bold' : 'normal'); d.setFontSize(9);
+      const cells = r.c.map((v, j) => d.splitTextToSize(String(v ?? ''), cols[j].w - 2 * pad));
+      const h = Math.max(...cells.map(l => l.length)) * lh + 3.2;
+      if (K.y + h > K.H - 22) { d.addPage(); K.y = K.M; head(); }
+      if (r.fill) { d.setFillColor(...r.fill); d.rect(K.M, K.y, K.CW, h, 'F'); } else if (i % 2) { d.setFillColor(245, 248, 246); d.rect(K.M, K.y, K.CW, h, 'F'); }
+      let x = K.M; cells.forEach((l, j) => { K.T(l, cols[j].a === 'r' ? x + cols[j].w - pad : x + pad, K.y + 4.4, { s: 9, b: r.b, opt: cols[j].a === 'r' ? { align: 'right' } : {} }); x += cols[j].w; });
+      K.y += h;
+    });
+    d.setDrawColor(210, 220, 214); d.setLineWidth(0.2); d.line(K.M, K.y, K.W - K.M, K.y); K.y += 6;
+  };
+  K.rodape = txt => { const n = d.getNumberOfPages(); for (let i = 1; i <= n; i++) { d.setPage(i); K.T(txt, K.M, K.H - 10, { s: 7.5, c: [120, 132, 126] }); K.T(`Página ${i} de ${n}`, K.W - K.M, K.H - 10, { s: 7.5, c: [120, 132, 126], opt: { align: 'right' } }); } };
+  return K;
+}
+/* SHA-256 próprio: mesmo resultado em qualquer navegador, com ou sem HTTPS */
+function sha256hex(str) {
+  const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const bytes = Array.from(new TextEncoder().encode(str)); const bitLen = bytes.length * 8;
+  bytes.push(0x80); while (bytes.length % 64 !== 56) bytes.push(0);
+  for (let i = 7; i >= 0; i--) bytes.push(i >= 4 ? 0 : (bitLen >>> (i * 8)) & 255);
+  let H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const r = (x, n) => (x >>> n) | (x << (32 - n)); const W = new Array(64);
+  for (let o = 0; o < bytes.length; o += 64) {
+    for (let i = 0; i < 16; i++) W[i] = (bytes[o + 4 * i] << 24) | (bytes[o + 4 * i + 1] << 16) | (bytes[o + 4 * i + 2] << 8) | bytes[o + 4 * i + 3];
+    for (let i = 16; i < 64; i++) { const s0 = r(W[i - 15], 7) ^ r(W[i - 15], 18) ^ (W[i - 15] >>> 3), s1 = r(W[i - 2], 17) ^ r(W[i - 2], 19) ^ (W[i - 2] >>> 10); W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0; }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
+      const t2 = ((r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    H = H.map((v, i) => (v + [a, b, c, d, e, f, g, h][i]) | 0);
+  }
+  return H.map(v => (v >>> 0).toString(16).padStart(8, '0')).join('');
+}
+async function codigoVerificacao(R) {
+  return sha256hex(baseVerificacao(R)).slice(0, 16).toUpperCase().match(/.{4}/g).join('-');
+}
+function linhaDoTempo(R) {
+  const cfg = R.config; const Pp = R.preparacao || {}; const prep = [];
+  const add = (x, acao, det) => { if (x && x.em) prep.push({ quando: x.em, ator: x.por || '—', acao, detalhe: det, ordem: prep.length }); };
+  add(Pp.empresa, 'Empresa cadastrada no sistema', [cfg.empresa, cfg.cnpj && 'CNPJ ' + cfg.cnpj].filter(Boolean).join(' · '));
+  add(Pp.eleitores, 'Base de eleitores importada (planilha)', `${Pp.total_eleitores} empregados cadastrados, ${Pp.aptos} aptos a votar.`);
+  add(Pp.candidatos, 'Cadastro de candidatos concluído', `${Pp.total_candidatos} candidato${Pp.total_candidatos === 1 ? '' : 's'} inscrito${Pp.total_candidatos === 1 ? '' : 's'}.`);
+  add(Pp.equipe, 'Presidente e membros da comissão eleitoral cadastrados', `Presidente: ${Pp.presidente || '—'}. ${Pp.mesarios} ${Pp.mesarios === 1 ? 'membro' : 'membros'} da comissão eleitoral.`);
+  add(Pp.codigos, 'Códigos de acesso gerados', `Cédulas individuais para os ${Pp.aptos} eleitores aptos.`);
+  if (Pp.apta_em) prep.push({ quando: Pp.apta_em, ator: 'Sistema', acao: 'Eleição habilitada para abertura', detalhe: 'Todos os requisitos de preparação cumpridos.', ordem: 50 });
+  return prep.concat(R.eventos.map(e => ({ ...e, ordem: 100 }))).sort((a, b) => Date.parse(a.quando) - Date.parse(b.quando) || a.ordem - b.ordem);
+}
+function baseVerificacao(R) {
+  return JSON.stringify([R.aptos, R.votantes, R.brancos, R.nulos, R.encerrada_em, R.candidatos.map(c => [c.nome, c.votos, c.condicao])]);
+}
+async function baixarAta(R) {
+  const cfg = R.config; const K = await pdfKit(cfg); const d = K.d;
+  const cod = await codigoVerificacao(R);
+  K.cabecalho('ATA DE APURAÇÃO DA ELEIÇÃO DA CIPA', [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao].filter(Boolean).join(' · '));
+  K.secao('1. Andamento da votação');
+  K.tabela([{ t: 'Data e hora', w: 32 }, { t: 'Evento', w: 44 }, { t: 'Responsável', w: 36 }, { t: 'Detalhe', w: K.CW - 112 }],
+    linhaDoTempo(R).map(e => ({ c: [fmtDT(e.quando), e.acao, e.ator, e.detalhe] })));
+  K.secao('2. Participação');
+  const meta = R.fase === 1 ? '50% dos eleitores aptos' : '1/3 dos eleitores aptos (prorrogação)';
+  K.tabela([{ t: 'Item', w: 90 }, { t: 'Valor', w: K.CW - 90, a: 'r' }], [
+    { c: ['Eleitores aptos', R.aptos] }, { c: ['Votantes', R.votantes] }, { c: ['Participação', fmtPct(pctN(R.votantes, R.aptos))] },
+    { c: ['Períodos de votação', R.fase === 1 ? '1 (sem prorrogação)' : `${R.fase} (${R.fase - 1} prorrogação${R.fase > 2 ? 'ões' : ''})`] },
+    { c: ['Mínimo exigido no último período', R.encerramento_tipo === 'administrativo' ? 'Não verificado (encerramento administrativo)' : meta] }]);
+  K.secao('3. Apuração');
+  const tot = R.total_votos || 0;
+  const vagas = `${cfg.vagas_titulares} titular${cfg.vagas_titulares > 1 ? 'es' : ''} e ${cfg.vagas_suplentes} suplente${cfg.vagas_suplentes !== 1 ? 's' : ''}`;
+  K.tabela([{ t: '#', w: 9, a: 'r' }, { t: 'Candidato', w: 62 }, { t: 'Setor', w: 30 }, { t: 'Admissão', w: 22 }, { t: 'Votos', w: 16, a: 'r' }, { t: '%', w: 15, a: 'r' }, { t: 'Resultado', w: K.CW - 154 }],
+    R.candidatos.map(c => ({ c: [c.posicao, `${c.apelido} (${c.nome})`, c.setor, fmtD(c.admissao), c.votos, fmtPct(pctN(c.votos, tot)), c.condicao], b: !!c.condicao }))
+      .concat([{ c: ['', 'Votos em branco', '', '', R.brancos, fmtPct(pctN(R.brancos, tot)), ''] }, { c: ['', 'Votos nulos', '', '', R.nulos, fmtPct(pctN(R.nulos, tot)), ''] },
+        { c: ['', 'Total de votos', '', '', tot, '100,0%', ''], b: true }]));
+  K.paragrafo(`Vagas: ${vagas}. Critério de desempate: maior tempo de serviço no estabelecimento (data de admissão mais antiga).`, { s: 8.5, c: [86, 103, 95] });
+  K.secao('4. Representantes eleitos dos empregados');
+  const tit = R.candidatos.filter(c => c.condicao === 'Titular'), sup = R.candidatos.filter(c => c.condicao === 'Suplente');
+  K.tabela([{ t: 'Condição', w: 26 }, { t: 'Nome', w: 76 }, { t: 'Apelido', w: 40 }, { t: 'Votos', w: K.CW - 142, a: 'r' }],
+    tit.map(c => ({ c: ['Titular', c.nome, c.apelido, c.votos] })).concat(sup.map(c => ({ c: ['Suplente', c.nome, c.apelido, c.votos] }))));
+  K.secao('5. Encerramento');
+  const adm = R.encerramento_tipo === 'administrativo';
+  K.paragrafo(`A votação foi realizada por meio eletrônico, com identificação individual do eleitor por matrícula, data de nascimento e código de acesso de uso único, garantindo um voto por eleitor e o sigilo do voto. ` + (adm
+    ? `A votação foi ENCERRADA ADMINISTRATIVAMENTE em ${fmtDT(R.encerrada_em)} por ${R.encerrada_por}, administrador do sistema, sem a verificação automática de prazo e de participação mínima. A apuração foi feita pelo sistema no momento do encerramento.`
+    : `A votação foi encerrada em ${fmtDT(R.encerrada_em)}, a pedido de ${R.encerrada_por}, Presidente da Comissão Eleitoral, com a confirmação dos membros da comissão eleitoral ${(R.confirmacoes_encerramento || []).map(c => c.nome).join(', ') || '—'}. A apuração foi feita automaticamente pelo sistema no momento do encerramento.`));
+  if (adm) K.paragrafo(`Justificativa do encerramento administrativo: ${R.justificativa}`, { b: 1, s: 9.5 });
+  K.paragrafo(`Código de verificação deste resultado: ${cod}`, { b: 1, s: 9.5 });
+  K.paragrafo(`Uma via de verificação desta ata (Ata de Verificação do Resultado) encontra-se sob a guarda do administrador do sistema, contendo o resultado integral, o registro completo das atividades da eleição e a impressão digital eletrônica (SHA-256) do resultado, para efeito de verificação junto à fiscalização do trabalho ou em processo judicial. O código de verificação acima corresponde aos 16 primeiros caracteres dessa impressão digital e pode ser usado para comparação entre os dois documentos.`, { s: 8.5, c: [86, 103, 95] });
+  K.secao('Assinaturas');
+  const ass = R.equipe.map(m => [m.nome, m.perfil === 'presidente' ? 'Presidente da Comissão Eleitoral' : 'Comissão Eleitoral'])
+    .concat([['', 'Representante do empregador'], ['', 'Representante dos empregados']]);
+  const colW = (K.CW - 10) / 2;
+  for (let i = 0; i < ass.length; i += 2) {
+    K.quebra(22); K.y += 12;
+    [0, 1].forEach(j => { const a = ass[i + j]; if (!a) return; const x = K.M + j * (colW + 10); d.setDrawColor(120); d.setLineWidth(0.3); d.line(x, K.y, x + colW, K.y); K.T(a[0] || ' ', x, K.y + 4.5, { b: 1, s: 9 }); K.T(a[1], x, K.y + 8.5, { s: 8, c: [86, 103, 95] }); });
+    K.y += 10;
+  }
+  K.rodape(`Urna CIPA · ${cfg.empresa} · verificação ${cod}`);
+  await salvarArquivo(`ata-eleicao-cipa-${slug(cfg.empresa)}.pdf`, d.output('blob'));
+}
+async function baixarAtaAdmin(R, L, emissor) {
+  const cfg = R.config; const K = await pdfKit(cfg); const d = K.d;
+  const hash = sha256hex(baseVerificacao(R)).toUpperCase();
+  const cod = hash.slice(0, 16).match(/.{4}/g).join('-');
+  const logAsc = (L || []).slice().reverse();
+  const hashLog = sha256hex(JSON.stringify(logAsc.map(l => [l.quando, l.ator, l.acao, l.detalhe]))).toUpperCase();
+  const agora = new Date().toISOString(); const mut = [86, 103, 95];
+  const cont = a => logAsc.filter(l => l.acao === a).length;
+  K.cabecalho('ATA DE VERIFICAÇÃO DO RESULTADO', 'Via de guarda do administrador do sistema · ' + [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao].filter(Boolean).join(' · '));
+  K.paragrafo(`Este documento é a via de verificação da Ata de Apuração emitida pela Comissão Eleitoral. Ele é gerado a partir dos mesmos dados gravados no banco de dados do sistema e serve para comprovar, junto à fiscalização do trabalho ou em processo judicial, que a ata apresentada pela Comissão Eleitoral corresponde ao resultado oficialmente registrado. Para a comparação, confira o código de verificação, os números da apuração e a linha do tempo nos dois documentos.`, { s: 9.5 });
+  K.secao('1. Identificação da eleição');
+  K.tabela([{ t: 'Item', w: 62 }, { t: 'Informação', w: K.CW - 62 }], [
+    { c: ['Empresa', [cfg.empresa, cfg.cnpj && 'CNPJ ' + cfg.cnpj].filter(Boolean).join(' · ')] },
+    { c: ['Estabelecimento', cfg.endereco || '—'] },
+    { c: ['Eleição', [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao].filter(Boolean).join(' · ')] },
+    { c: ['Endereço da votação', cfg.url_site || '—'] },
+    { c: ['Abertura da votação', fmtDT(R.aberta_em)] },
+    { c: ['Encerramento', `${fmtDT(R.encerrada_em)} · ${R.encerramento_tipo === 'administrativo' ? 'encerramento administrativo por ' + R.encerrada_por : 'a pedido de ' + R.encerrada_por + ', confirmado por ' + ((R.confirmacoes_encerramento || []).map(c => c.nome).join(', ') || '—')}`] },
+    { c: ['Vagas', `${cfg.vagas_titulares} titulares e ${cfg.vagas_suplentes} suplentes`] }]);
+  K.secao('2. Elementos de autenticação');
+  K.tabela([{ t: 'Elemento', w: 62 }, { t: 'Valor', w: K.CW - 62 }], [
+    { c: ['Código de verificação', cod], b: true },
+    { c: ['Impressão digital do resultado (SHA-256)', hash.match(/.{16}/g).join(' ')] },
+    { c: ['Impressão digital do registro de atividades (SHA-256)', hashLog.match(/.{16}/g).join(' ')] },
+    { c: ['Emitida em', fmtDT(agora)] },
+    { c: ['Emitida por', emissor + ' (administrador do sistema)'] }]);
+  K.paragrafo(`O código de verificação impresso na Ata de Apuração da Comissão Eleitoral corresponde aos 16 primeiros caracteres da impressão digital do resultado. Qualquer alteração nos números da apuração, nos nomes dos candidatos ou na data de encerramento produz uma impressão digital diferente.`, { s: 8.5, c: mut });
+  K.secao('3. Resultado integral da apuração');
+  const tot = R.total_votos || 0;
+  K.tabela([{ t: '#', w: 9, a: 'r' }, { t: 'Candidato', w: 70 }, { t: 'Setor', w: 32 }, { t: 'Admissão', w: 22 }, { t: 'Votos', w: 16, a: 'r' }, { t: 'Resultado', w: K.CW - 149 }],
+    R.candidatos.map(c => ({ c: [c.posicao, `${c.apelido} (${c.nome})`, c.setor, fmtD(c.admissao), c.votos, c.condicao], b: !!c.condicao }))
+      .concat([{ c: ['', 'Votos em branco', '', '', R.brancos, ''] }, { c: ['', 'Votos nulos', '', '', R.nulos, ''] }, { c: ['', 'Total de votos', '', '', tot, ''], b: true }]));
+  K.secao('4. Conferência de consistência');
+  const ok = tot === R.votantes;
+  K.tabela([{ t: 'Verificação', w: 110 }, { t: 'Valor', w: K.CW - 110, a: 'r' }], [
+    { c: ['Eleitores aptos', R.aptos] },
+    { c: ['Eleitores marcados como "já votou"', R.votantes] },
+    { c: ['Votos registrados na urna eletrônica', tot] },
+    { c: ['Diferença entre votantes e votos', ok ? '0 (consistente)' : String(tot - R.votantes)], b: true },
+    { c: ['Participação', fmtPct(pctN(R.votantes, R.aptos))] },
+    { c: ['Votos por período', (R.votos_por_fase || []).map(f => `${faseNome(f.fase)}: ${f.votos}`).join(' · ') || '—'] },
+    { c: ['Códigos de acesso reemitidos pela comissão', cont('Código reemitido')] },
+    { c: ['Consultas à lista de quem não votou', cont('Consultou lista de quem não votou')] },
+    { c: ['Acessos da equipe ao painel', cont('Acesso ao painel')] }]);
+  K.paragrafo('Cada voto é gravado no mesmo instante em que o eleitor é marcado como "já votou", numa única operação do banco de dados. Por isso o número de votantes e o número de votos registrados devem ser idênticos.', { s: 8.5, c: mut });
+  K.secao('5. Linha do tempo da eleição');
+  K.tabela([{ t: 'Data e hora', w: 32 }, { t: 'Evento', w: 44 }, { t: 'Responsável', w: 36 }, { t: 'Detalhe', w: K.CW - 112 }],
+    linhaDoTempo(R).map(e => ({ c: [fmtDT(e.quando), e.acao, e.ator, e.detalhe] })));
+  K.secao('6. Equipe da eleição');
+  K.tabela([{ t: 'Nome', w: 90 }, { t: 'Função', w: K.CW - 90 }],
+    R.equipe.map(m => ({ c: [m.nome, m.perfil === 'presidente' ? 'Presidente da Comissão Eleitoral' : 'Comissão Eleitoral'] })));
+  K.secao('7. Registro completo de atividades');
+  K.paragrafo(`${logAsc.length} registros, em ordem cronológica. O registro não contém nenhuma informação sobre em quem cada eleitor votou.`, { s: 8.5, c: mut });
+  K.tabela([{ t: 'Data e hora', w: 32 }, { t: 'Quem', w: 40 }, { t: 'Ação', w: 46 }, { t: 'Detalhe', w: K.CW - 118 }],
+    logAsc.map(l => ({ c: [fmtDT(l.quando), l.ator, l.acao, l.detalhe] })));
+  K.secao('8. Garantias técnicas do sistema');
+  [
+    'Voto secreto: a tabela de votos não tem nenhum vínculo com o eleitor nem registra horário; o sistema guarda apenas que o eleitor votou.',
+    'Um voto por eleitor: o eleitor é identificado por matrícula, data de nascimento e código de uso único; após o voto o código deixa de valer.',
+    'Códigos de acesso e senhas da equipe são guardados apenas em forma embaralhada (hash), sem possibilidade de leitura.',
+    'Contagem oculta: nenhum perfil, inclusive o administrador, vê votos por candidato antes do encerramento.',
+    'Regras automáticas: prazo, participação mínima (NR-5), prorrogação e encerramento dependem de confirmações registradas da comissão eleitoral.',
+    'Datas e horários são os do servidor do banco de dados, no fuso de Brasília, e não do aparelho de quem acessa.'
+  ].forEach(t => K.paragrafo('• ' + t, { s: 9 }));
+  K.secao('9. Declaração');
+  K.paragrafo(`Declaro que este documento foi gerado pelo sistema de votação eletrônica a partir dos dados registrados na eleição acima identificada, sem qualquer alteração manual, e que os dados permanecem sob minha guarda para efeito de verificação.`, { s: 9.5 });
+  K.quebra(30); K.y += 16;
+  d.setDrawColor(120); d.setLineWidth(0.3); d.line(K.M, K.y, K.M + 90, K.y);
+  K.T(emissor, K.M, K.y + 4.5, { b: 1, s: 9 }); K.T('Administrador do sistema · responsável pela guarda', K.M, K.y + 8.5, { s: 8, c: mut });
+  K.y += 14;
+  K.rodape(`Ata de verificação · via do administrador · ${cfg.empresa} · verificação ${cod}`);
+  await salvarArquivo(`ata-verificacao-admin-${slug(cfg.empresa)}.pdf`, d.output('blob'));
+}
+async function baixarCedulas(lista, cfg) {
+  const K = await pdfKit(cfg); const d = K.d; const mx = 10, my = 10, cw = (210 - 2 * mx) / 2, ch = (297 - 2 * my) / 4; const mut = [86, 103, 95];
+  lista.forEach((e, i) => {
+    const k = i % 8; if (i && k === 0) d.addPage();
+    const cx = mx + (k % 2) * cw, cy = my + Math.floor(k / 2) * ch;
+    d.setLineDashPattern([1.2, 1.2], 0); d.setDrawColor(170); d.setLineWidth(0.2); d.rect(cx, cy, cw, ch); d.setLineDashPattern([], 0);
+    d.setFillColor(...K.cor); d.rect(cx + 4, cy + 6, 1.4, ch - 12, 'F');
+    const x = cx + 9; let y = cy + 11;
+    d.setFont('helvetica', 'bold'); d.setFontSize(9);
+    K.T(d.splitTextToSize(cfg.empresa || '', cw - 50)[0], x, y, { b: 1, s: 9 });
+    K.T('CÉDULA DE ACESSO', cx + cw - 6, y, { b: 1, s: 6.5, c: K.cor, opt: { align: 'right' } });
+    y += 4.3; K.T([cfg.titulo, cfg.gestao].filter(Boolean).join(' · '), x, y, { s: 7.5, c: mut });
+    y += 9; d.setFont('helvetica', 'bold'); d.setFontSize(11.5); K.T(d.splitTextToSize(e.nome, cw - 16)[0], x, y, { b: 1, s: 11.5 });
+    y += 5; K.T(`Matrícula ${e.matricula}${e.setor ? ' · ' + e.setor : ''}`, x, y, { s: 8.5 });
+    y += 9; K.T('CÓDIGO DE ACESSO', x, y, { b: 1, s: 6.5, c: mut });
+    y += 9; K.T(e.codigo, x, y, { f: 'courier', b: 1, s: 24 });
+    y += 7; d.setFontSize(7.3);
+    K.T(d.splitTextToSize(`Acesse ${cfg.url_site || 'www.cipaflow.com.br/votar'} e informe sua matrícula, sua data de nascimento e este código. Vale para um único voto. Não compartilhe.`, cw - 16), x, y, { s: 7.3, c: mut });
+  });
+  await salvarArquivo(`cedulas-acesso-${slug(cfg.empresa)}.pdf`, d.output('blob'));
+}
+async function baixarListaRH(lista, cfg) {
+  const K = await pdfKit(cfg);
+  K.cabecalho('LISTA DE CÓDIGOS DE ACESSO · CONFIDENCIAL', [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao, `${lista.length} eleitores`].filter(Boolean).join(' · '));
+  K.paragrafo(`Documento para o RH enviar a cada eleitor o seu código individual. Cada código vale para um único voto. Não divulgue esta lista nem a deixe em local de acesso comum; após a distribuição, guarde-a com a comissão eleitoral ou descarte com segurança. Endereço da votação: ${cfg.url_site || 'www.cipaflow.com.br/votar'}.`, { s: 8.5, c: [86, 103, 95] });
+  K.tabela([{ t: 'Nome completo', w: 78 }, { t: 'Matrícula', w: 24 }, { t: 'Setor', w: 36 }, { t: 'Código de acesso', w: K.CW - 138 }],
+    lista.map(e => ({ c: [e.nome, e.matricula, e.setor, e.codigo] })));
+  K.rodape(`Urna CIPA · ${cfg.empresa} · CONFIDENCIAL · ${lista.length} códigos`);
+  await salvarArquivo(`codigos-eleitores-RH-${slug(cfg.empresa)}.pdf`, K.d.output('blob'));
+}
+async function baixarListaEntrega(lista, cfg) {
+  const K = await pdfKit(cfg);
+  K.cabecalho('PROTOCOLO DE ENTREGA DAS CÉDULAS DE ACESSO', [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao].filter(Boolean).join(' · '));
+  K.tabela([{ t: 'Nome', w: 62 }, { t: 'Matrícula', w: 22 }, { t: 'Setor', w: 30 }, { t: 'Data', w: 18 }, { t: 'Assinatura', w: K.CW - 132 }],
+    lista.map(e => ({ c: [e.nome, e.matricula, e.setor, '', ''] })));
+  K.rodape(`Urna CIPA · ${cfg.empresa} · ${lista.length} cédulas`);
+  await salvarArquivo(`protocolo-entrega-cedulas-${slug(cfg.empresa)}.pdf`, K.d.output('blob'));
+}
+
+/* =====================================================================
+   PAINEL DE TESTES (somente demonstração)
+   ===================================================================== */
+function demoBand() { return DEMO ? `<div class="demo-band"><button class="btn" id="b-demo"><span class="hide-sm">Demonstração · </span>Painel de testes</button></div>` : ''; }
+function bindDemoBand() { const b = $('#b-demo'); if (b) b.onclick = abrirDemo; }
+function abrirDemo() {
+  const D = API._demo; const old = $('#drawer'); if (old) old.remove();
+  const el = document.createElement('div'); el.id = 'drawer'; el.className = 'drawer';
+  const st = D.status();
+  el.innerHTML = `<div class="drawer-in" role="dialog" aria-label="Painel de testes">
+    <div class="row" style="justify-content:space-between"><h2>Painel de testes</h2><button class="btn ghost" id="d-fechar">Fechar</button></div>
+    <div class="msg attn">Modo demonstração. Empresa, pessoas e votos são fictícios e ficam só neste navegador. Relógio simulado: <b>${esc(fmtDT(new Date(D.agora()).toISOString()))}</b>.</div>
+    <div class="card stack"><h3>Testar como eleitor</h3><p class="small muted">Clique em um eleitor para preencher a tela de votação.</p>
+      <div class="scroll"><table class="tbl cred"><thead><tr><th>Matrícula</th><th>Nascimento</th><th>Código</th></tr></thead><tbody>
+      ${D.testadores().map(t => `<tr data-v='${esc(JSON.stringify(t))}' style="cursor:pointer"><td>${esc(t.matricula)}</td><td>${esc(fmtD(t.nascimento))}</td><td>${esc(t.codigo)}</td></tr>`).join('') || '<tr><td colspan="3">Sem eleitores disponíveis.</td></tr>'}
+      </tbody></table></div></div>
+    <div class="card stack"><h3>Testar como equipe</h3>
+      <div class="scroll"><table class="tbl cred"><thead><tr><th>Login</th><th>Senha</th><th>Perfil</th></tr></thead><tbody>
+      ${D.equipe().map(m => `<tr data-s='${esc(JSON.stringify(m))}' style="cursor:pointer"><td>${esc(m.login)}</td><td>${esc(m.senha)}</td><td style="font-family:var(--f-body)">${esc(PERFIL[m.perfil])}</td></tr>`).join('')}
+      </tbody></table></div><p class="small muted">Clique para entrar direto com esse perfil.</p></div>
+    <div class="card stack"><h3>Simular o tempo</h3>
+      <div class="row"><button class="btn ghost" id="d-sim" ${st === 'aberta' ? '' : 'disabled'}>Registrar 10 votos aleatórios</button>
+      <button class="btn ghost" id="d-av" ${st === 'aberta' ? '' : 'disabled'}>Avançar até o fim do período</button></div>
+      <p class="small muted">Para testar a prorrogação, avance o relógio com menos de 50% de participação. Depois peça a prorrogação como presidente e confirme com 3 membros da comissão eleitoral.</p></div>
+    <div class="card stack"><h3>Recomeçar</h3>
+      <div class="row"><button class="btn ghost" id="d-r1">Votação em andamento</button><button class="btn ghost" id="d-r2">Etapa de preparação</button></div>
+      <p class="small muted">A preparação começa com eleitores e candidatos cadastrados, sem códigos, para testar cédulas e abertura.</p></div>
+  </div>`;
+  document.body.appendChild(el);
+  const fechar = () => el.remove();
+  el.addEventListener('click', ev => { if (ev.target === el) fechar(); });
+  $('#d-fechar', el).onclick = fechar;
+  $$('[data-v]', el).forEach(tr => tr.onclick = async () => {
+    const t = JSON.parse(tr.dataset.v); fechar(); A.view = 'eleitor'; A.voto = { step: 'login', token: null, nome: '', escolha: null };
+    await carregarEstado(); render();
+    const m = $('#v-mat'); if (m && !m.disabled) { m.value = t.matricula; $('#v-nasc').value = fmtD(t.nascimento); $('#v-cod').value = t.codigo; $('#v-entrar').focus(); }
+    else toast('A votação não está aberta agora. Use a equipe para avançar a eleição.');
+  });
+  $$('[data-s]', el).forEach(tr => tr.onclick = async () => {
+    const m = JSON.parse(tr.dataset.s); fechar();
+    try { const r = await API.equipeEntrar(m.login, m.senha); A.staff = { token: r.token, perfil: r.perfil, nome: r.nome, trocar: !!r.trocar_senha }; A.provisoria = r.trocar_senha ? m.senha : null; guardarStaff(); A.view = 'painel'; A.tab = 'acomp'; A.codigos = null; await abrirPainel(); } catch (e) { toast(e.message); }
+  });
+  const acao = async fn => { try { await fn(); } catch (e) { toast(e.message); } fechar(); if (A.view === 'painel') await atualizarPainel(true); else { await carregarEstado(); render(); } };
+  $('#d-sim', el).onclick = () => acao(async () => { const n = D.simular(10); toast(`${n} votos simulados.`); });
+  $('#d-av', el).onclick = () => acao(async () => { D.avancar(); toast('Relógio avançado até o fim do período.'); });
+  $('#d-r1', el).onclick = () => acao(async () => { D.reset('andamento'); A.staff = null; guardarStaff(); A.view = 'eleitor'; A.voto = { step: 'login', token: null, nome: '', escolha: null }; A.cands = null; toast('Demonstração reiniciada com votação em andamento.'); });
+  $('#d-r2', el).onclick = () => acao(async () => { D.reset('preparacao'); A.staff = null; guardarStaff(); A.view = 'eleitor'; A.voto = { step: 'login', token: null, nome: '', escolha: null }; A.cands = null; toast('Demonstração reiniciada na etapa de preparação.'); });
+}
+
+/* =====================================================================
+   INÍCIO
+   ===================================================================== */
+function render() {
+  if (A.view === 'painel' && A.staff && A.staff.trocar) telaNovaSenha();
+  else if (A.view === 'painel' && A.painel) renderPainel();
+  else if (A.view === 'equipe-login') renderEquipeLogin();
+  else renderEleitor();
+}
+setInterval(() => {
+  $$('[data-cd]').forEach(el => {
+    const f = el.dataset.cd; if (!f) return; const ms = Date.parse(f) - agoraSrv();
+    el.textContent = dur(ms);
+    if (ms <= 0 && !el.dataset.done) { el.dataset.done = '1'; setTimeout(() => atualizarPainel(true), 1500); }
+  });
+}, 1000);
+setInterval(() => atualizarPainel(false), 15000);
+setInterval(async () => {
+  if (A.view === 'eleitor' && A.voto.step === 'login' && !document.activeElement.matches('input')) { try { await carregarEstado(); renderEleitor(); } catch (e) { /* tenta de novo depois */ } }
+}, 60000);
+(async function iniciar() {
+  try { await carregarEstado(); } catch (e) {
+    $('#app').innerHTML = `<main class="wrap narrow voter"><div class="msg err">${esc(e.message)}</div></main>`; return;
+  }
+  A.staff = lerStaff();
+  if (A.staff) { A.view = 'painel'; await abrirPainel(); return; }
+  if (location.hash === '#comissao') A.view = 'equipe-login';
+  render();
+})();
+</script>
+
+</body>
+</html>
