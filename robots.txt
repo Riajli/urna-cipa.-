@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /votar/
+
+Sitemap: https://www.cipaflow.com.br/sitemap.xml
