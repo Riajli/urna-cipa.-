@@ -1,0 +1,44 @@
+# CipaFlow · Mantém o banco do Supabase ativo
+# A cada 2 dias o GitHub chama a função "manter_ativo" do banco. Não mexe em nenhum dado da eleição.
+# Para rodar na hora: aba Actions → "Manter Supabase ativo" → Run workflow.
+
+name: Manter Supabase ativo
+
+on:
+  schedule:
+    - cron: "17 12 */2 * *"   # a cada 2 dias, por volta das 9h17 (horário de Brasília)
+  workflow_dispatch:
+
+permissions:
+  actions: write   # só para manter este agendamento ligado (ver o último passo)
+  contents: read
+
+jobs:
+  sinal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enviar sinal ao banco
+        env:
+          # mesmos dados públicos que já estão no site (nunca use a chave secreta aqui)
+          SUPABASE_URL: https://cdyummugdvipgplbkftq.supabase.co
+          SUPABASE_KEY: sb_publishable_3yXXkA01XgHQavktUXSwGA_Ww9DUqAD
+        run: |
+          for tentativa in 1 2 3; do
+            if resposta=$(curl -fsS --max-time 30 -X POST "$SUPABASE_URL/rest/v1/rpc/manter_ativo" \
+                 -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" -d '{}'); then
+              echo "Banco respondeu: $resposta"
+              exit 0
+            fi
+            echo "Tentativa $tentativa falhou. Aguardando 60 s..."
+            sleep 60
+          done
+          echo "O banco não respondeu. Confira se o projeto no Supabase está pausado."
+          exit 1
+
+      # O GitHub desliga agendamentos de repositórios sem alterações há 60 dias.
+      # Este passo reafirma que o agendamento está ligado, sem alterar nenhum arquivo do site.
+      - name: Manter o agendamento ligado
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/manter-supabase-ativo.yml/enable" || true
