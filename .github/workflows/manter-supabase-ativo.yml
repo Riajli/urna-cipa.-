@@ -1,12 +1,13 @@
 # CipaFlow · Mantém o banco do Supabase ativo
-# A cada 2 dias o GitHub chama a função "manter_ativo" do banco. Não mexe em nenhum dado da eleição.
+# Todo dia o GitHub chama o banco (função "manter_ativo" + leitura da tela inicial). Não mexe em nenhum dado da eleição.
 # Para rodar na hora: aba Actions → "Manter Supabase ativo" → Run workflow.
 
 name: Manter Supabase ativo
 
 on:
   schedule:
-    - cron: "17 12 */2 * *"   # a cada 2 dias, por volta das 9h17 (horário de Brasília)
+    - cron: "17 12 * * *"   # todo dia, por volta das 9h17 (horário de Brasília)
+    - cron: "43 23 * * *"   # e de novo por volta das 20h43, caso o GitHub pule um horário
   workflow_dispatch:
 
 permissions:
@@ -27,6 +28,9 @@ jobs:
             if resposta=$(curl -fsS --max-time 30 -X POST "$SUPABASE_URL/rest/v1/rpc/manter_ativo" \
                  -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" -d '{}'); then
               echo "Banco respondeu: $resposta"
+              # leitura da tela inicial da votação, a mesma que o site faz ao abrir
+              curl -fsS --max-time 30 -o /dev/null -X POST "$SUPABASE_URL/rest/v1/rpc/estado_publico" \
+                 -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" -d '{}' && echo "Tela inicial lida: ok"
               exit 0
             fi
             echo "Tentativa $tentativa falhou. Aguardando 60 s..."
