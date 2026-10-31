@@ -4,12 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
+<link rel="stylesheet" href="/assets/fontes.css">
 </head>
 <body>
 <title>CipaFlow - Votação</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=JetBrains+Mono:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap">
 <style>
 /* Tema único claro (sem modo escuro). Layout: faixa da empresa no topo, coluna única para o eleitor (pensada para celular),
    painel em grade para a comissão. Teclas CONFIRMA / CORRIGE / BRANCO seguem a urna brasileira. */
@@ -249,8 +248,8 @@ const CONFIG = {
 const DEMO = !CONFIG.SUPABASE_URL;
 const TZ = 'America/Sao_Paulo';
 const LIB = {
-  jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+  jspdf: '/assets/js/jspdf.umd.min.js',
+  xlsx: '/assets/js/xlsx.full.min.js'
 };
 
 /* ---------------- utilitários ---------------- */
