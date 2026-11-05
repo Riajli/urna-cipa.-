@@ -1096,6 +1096,7 @@ function abas() {
   if (p !== 'mesario') t.push(['registro', 'Registro']);
   if (enc) t.push(['resultado', 'Resultado']);
   t.push(['conta', p === 'admin' ? 'Conta e manutenção' : 'Minha conta']);
+  if (p === 'admin') t.push(['documentos', 'Documentos']);
   return t;
 }
 function renderPainel() {
@@ -1116,7 +1117,7 @@ function renderPainel() {
   renderAba();
 }
 function renderAba() {
-  const fns = { acomp: abaAcomp, empresa: abaEmpresa, eleitores: abaEleitores, candidatos: abaCandidatos, equipe: abaEquipe, cedulas: abaCedulas, naovotaram: abaNaoVotaram, reemitir: abaReemitir, registro: abaRegistro, resultado: abaResultado, conta: abaConta };
+  const fns = { acomp: abaAcomp, empresa: abaEmpresa, eleitores: abaEleitores, candidatos: abaCandidatos, equipe: abaEquipe, cedulas: abaCedulas, documentos: abaDocumentos, naovotaram: abaNaoVotaram, reemitir: abaReemitir, registro: abaRegistro, resultado: abaResultado, conta: abaConta };
   (fns[A.tab] || abaAcomp)();
 }
 async function atualizarPainel(forcar) {
@@ -1512,6 +1513,28 @@ async function abaEquipe() {
     ev.preventDefault();
     try { await API.salvarMembro(A.staff.token, { id: m ? m.id : null, nome: $('#m-nome').value, login: $('#m-login').value, perfil: $('#m-perfil').value, senha: $('#m-senha').value }); toast('Acesso salvo.'); A.editMembro = null; await atualizarPainel(); abaEquipe(); } catch (e) { toast(e.message); }
   });
+}
+
+/* ---- Documentos (só administrador) ---- */
+const DOCUMENTOS = [
+  { grupo: 'Para os eleitores', itens: [
+    { arq: 'guia-do-eleitor.pdf', nome: 'CipaFlow - Guia do Eleitor.pdf', titulo: 'Guia do Eleitor', desc: 'Passo a passo para votar, sigilo do voto e o que fazer se algo der errado.', info: 'PDF · 2 páginas' },
+    { arq: 'cartaz-para-eleitores.pdf', nome: 'CipaFlow - Cartaz para Eleitores.pdf', titulo: 'Cartaz para eleitores', desc: 'Para imprimir e afixar. Tem espaço para escrever o início e o término da votação.', info: 'PDF · 1 página' } ] },
+  { grupo: 'Para a comissão eleitoral', itens: [
+    { arq: 'guia-da-comissao-eleitoral.pdf', nome: 'CipaFlow - Guia da Comissao Eleitoral.pdf', titulo: 'Guia da Comissão Eleitoral', desc: 'Acompanhamento, quem não votou, novo código, confirmações e situações do dia a dia.', info: 'PDF · 4 páginas' },
+    { arq: 'guia-do-presidente.pdf', nome: 'CipaFlow - Guia do Presidente.pdf', titulo: 'Guia do Presidente', desc: 'Abertura, prorrogação, encerramento, ata e situações excepcionais.', info: 'PDF · 4 páginas' } ] },
+  { grupo: 'Para a TI da empresa', itens: [
+    { arq: 'guia-de-liberacao-para-a-ti.docx', nome: 'CipaFlow - Guia de liberacao para a TI.docx', titulo: 'Guia de liberação para a TI', desc: 'Endereços a liberar na rede, requisitos técnicos, segurança e teste rápido.', info: 'Word · 1 página' } ] }
+];
+function abaDocumentos() {
+  $('#tabbody').innerHTML = `<div class="stack">
+    <div><h2>Documentos</h2><p class="muted small">Materiais de apoio para enviar à empresa cliente. São genéricos, sem dados de nenhuma eleição.</p></div>
+    ${DOCUMENTOS.map(g => `<div class="card stack"><h3>${esc(g.grupo)}</h3>
+      ${g.itens.map(d => `<div class="row" style="justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:10px">
+        <div style="flex:1;min-width:220px"><div style="font-weight:700">${esc(d.titulo)}</div><div class="small muted">${esc(d.desc)}</div><div class="small muted">${esc(d.info)}</div></div>
+        <a class="btn ghost" href="/documentos/${esc(d.arq)}" download="${esc(d.nome)}">Baixar</a></div>`).join('')}
+    </div>`).join('')}
+  </div>`;
 }
 
 /* ---- Cédulas ---- */
