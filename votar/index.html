@@ -174,6 +174,17 @@ textarea.input{resize:vertical}
 .role{font-family:var(--f-display);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:var(--brand);color:var(--on-brand)}
 /* painel da equipe usa a largura da tela (até 1600px) */
 body.is-painel .wrap{max-width:1600px;padding-inline:clamp(16px,2.5vw,40px)}
+.aceite{display:flex;gap:10px;align-items:flex-start;font-size:.92rem;line-height:1.4;cursor:pointer}
+.aceite input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--brand)}
+.aceite a,.legal a{color:var(--brand);font-weight:600}
+.legal{text-align:center;margin:18px auto 8px;padding-inline:16px}
+.cookiebar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 24px rgba(0,0,0,.08);padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px))}
+.cookiebar-in{max-width:1120px;margin:0 auto;display:flex;gap:14px 20px;align-items:center;flex-wrap:wrap}
+.cookiebar p{flex:1 1 420px;margin:0;font-size:.92rem;line-height:1.45}
+.cookiebar a{color:var(--brand);font-weight:600}
+.cookiebar-b{display:flex;gap:10px;flex:none}
+.cookiebar-b .btn{min-height:42px;padding:8px 20px}
+body.has-urna .cookiebar{display:none}
 .tabsbar{background:var(--surface);border-bottom:1px solid var(--line)}
 .tabs{display:flex;gap:5px;overflow-x:auto;padding-block:10px;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
@@ -400,12 +411,15 @@ async function rpc(fn, args = {}) {
   if (data && data.ok === false) throw new Error(data.erro);
   return data;
 }
+/* versão dos Termos de Uso e da Política de Privacidade (igual à do banco e das páginas /termos e /privacidade) */
+const VERSAO_TERMOS = '2026-11-07';
 const RealAPI = {
   estado: () => rpc('estado_publico'),
   candidatos: t => t ? rpc('admin_candidatos', { p_token: t }) : rpc('candidatos_publicos'),
-  eleitorEntrar: (m, n, c) => rpc('eleitor_entrar', { p_matricula: m, p_nascimento: n, p_codigo: c }),
+  eleitorEntrar: (m, n, c) => rpc('eleitor_entrar', { p_matricula: m, p_nascimento: n, p_codigo: c, p_termos: VERSAO_TERMOS }),
   votar: (t, e) => rpc('votar', { p_token: t, p_escolha: e }),
-  equipeEntrar: (l, s) => rpc('equipe_entrar', { p_login: l, p_senha: s }),
+  equipeEntrar: (l, s) => rpc('equipe_entrar', { p_login: l, p_senha: s, p_termos: VERSAO_TERMOS }),
+  aceites: t => rpc('admin_aceites', { p_token: t }),
   equipeSair: t => rpc('equipe_sair', { p_token: t }),
   trocarSenha: (t, a, n) => rpc('trocar_senha', { p_token: t, p_atual: a, p_nova: n }),
   painel: t => rpc('painel', { p_token: t }),
@@ -442,6 +456,11 @@ function makeDemo() {
   const iso = t => new Date(t).toISOString();
   const bloqueio = n => n > 0 && n % 5 === 0 ? iso(now() + Math.min(15 * (n / 5), 60) * 60000) : null;
   const horaHM = t => new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(new Date(t));
+  // demonstração: sem parâmetro de aceite no navegador, considera sempre aceito (o site real envia a versão)
+  const termosOk = () => true;
+  const aceite = (tipo, ref, nome) => { S.aceites = S.aceites || []; const c = S.config || {};
+    if (!S.aceites.some(a => a.tipo === tipo && a.referencia === ref && (a.cnpj || '') === (c.cnpj || '') && a.versao === VERSAO_TERMOS))
+      S.aceites.push({ quando: iso(now()), tipo, referencia: ref, nome, empresa: c.empresa || '', cnpj: c.cnpj || '', versao: VERSAO_TERMOS, ip: '127.0.0.1 (demonstração)', navegador: navigator.userAgent }); };
   const senhaOk = p => { if (String(p || '').length < 10) throw new Error('A senha precisa ter pelo menos 10 caracteres.'); if (/TROQUE-ESTA-SENHA/i.test(p)) throw new Error('Troque a senha de exemplo por uma senha sua.'); };
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* armazenamento indisponível */ } };
   const load = () => { try { const t = localStorage.getItem(KEY); return t ? JSON.parse(t) : null; } catch (e) { return null; } };
@@ -531,14 +550,14 @@ function makeDemo() {
     async estado() { await sleep(80); const E = atualizar(); return clone({ config: pubCfg(), status: E.status, fase: E.fase, inicio: E.inicio, fim: E.fim, agora: iso(now()), resultado: E.status === 'encerrada' ? resultado() : null }); },
     async candidatos(t) { if (t) staff(t, ['admin']); return clone(S.candidatos.slice().sort((a, b) => a.apelido.localeCompare(b.apelido, 'pt')).map(k => t ? k : (({ matricula, ...r }) => r)(k))); },
     async eleitorEntrar(m, n, c) {
-      await sleep(250); const E = atualizar(); const errMsg = 'Dados não conferem. Confira matrícula, data de nascimento e código.';
+      await sleep(250); termosOk(); const E = atualizar(); const errMsg = 'Dados não conferem. Confira matrícula, data de nascimento e código.';
       if (E.status !== 'aberta') fail('A votação não está aberta neste momento.');
       const r = S.eleitores.find(e => e.matricula === String(m).trim()); if (!r) fail(errMsg);
       if (r.bloqueado_ate && Date.parse(r.bloqueado_ate) > now()) fail(`Muitas tentativas incorretas. Tente de novo depois das ${horaHM(r.bloqueado_ate)}.`);
       if (!r.codigo || r.nascimento !== n || norm(r.codigo) !== norm(c)) { r.tentativas = (r.tentativas || 0) + 1; r.bloqueado_ate = bloqueio(r.tentativas); if (r.bloqueado_ate) log('Sistema', 'Eleitor bloqueado', `Matrícula ${r.matricula}: ${r.tentativas} tentativas incorretas. Acesso bloqueado até ${fmtDT(r.bloqueado_ate)}.`); save(); fail(errMsg); }
       if (r.votou) fail('Seu voto já foi registrado. Cada pessoa vota uma única vez.');
       if (!apto(r)) fail('Sua situação cadastral não permite votar nesta eleição. Procure a comissão eleitoral.');
-      const t = tok(); r.sessao = t; r.sessao_expira = now() + 600000; r.tentativas = 0; r.bloqueado_ate = null; save();
+      const t = tok(); r.sessao = t; r.sessao_expira = now() + 600000; r.tentativas = 0; r.bloqueado_ate = null; aceite('eleitor', r.matricula, r.nome); save();
       return { ok: true, token: t, nome: r.nome };
     },
     async votar(t, esc) {
@@ -550,14 +569,15 @@ function makeDemo() {
       S.votos.splice(Math.floor(Math.random() * (S.votos.length + 1)), 0, { escolha: String(esc), fase: E.fase }); r.votou = true; r.sessao = null; save(); return { ok: true };
     },
     async equipeEntrar(l, s) {
-      await sleep(200); const m = S.equipe.find(x => x.ativo && x.login === String(l).trim().toLowerCase());
+      await sleep(200); termosOk(); const m = S.equipe.find(x => x.ativo && x.login === String(l).trim().toLowerCase());
       if (m && m.bloqueado_ate && Date.parse(m.bloqueado_ate) > now()) throw new Error(`Acesso bloqueado por tentativas incorretas. Tente de novo depois das ${horaHM(m.bloqueado_ate)}.`);
       if (!m || m.senha !== s) { if (m) { m.tentativas = (m.tentativas || 0) + 1; m.bloqueado_ate = bloqueio(m.tentativas); if (m.bloqueado_ate) log('Sistema', 'Login bloqueado', `${m.nome}: ${m.tentativas} senhas incorretas. Acesso bloqueado até ${fmtDT(m.bloqueado_ate)}.`); save(); } throw new Error('Login ou senha incorretos.'); }
-      m.tentativas = 0; m.bloqueado_ate = null;
+      m.tentativas = 0; m.bloqueado_ate = null; aceite('equipe', m.login, m.nome);
       const t = tok(); S.sess[t] = { id: m.id }; log(m.nome, 'Acesso ao painel', m.perfil); save();
       return { ok: true, token: t, nome: m.nome, perfil: m.perfil, trocar_senha: !!m.trocar_senha };
     },
     async equipeSair(t) { delete S.sess[t]; save(); return { ok: true }; },
+    async aceites(t) { await sleep(150); staff(t, ['admin']); return { ok: true, versao: VERSAO_TERMOS, itens: (S.aceites || []).slice().sort((a, b) => b.quando.localeCompare(a.quando)) }; },
     async trocarSenha(t, a, n) { const m = sessao(t); if (m.senha !== a) throw new Error('A senha atual não confere.'); senhaOk(n); if (n === a) throw new Error('A nova senha precisa ser diferente da atual.'); m.senha = n; m.trocar_senha = false; log(m.nome, 'Senha alterada'); save(); return { ok: true }; },
     async painel(t) {
       await sleep(60); const m = staff(t, TODOS); const E = atualizar(); const { aptos, votantes } = contagem(); const p = pendente();
@@ -862,8 +882,47 @@ function ajustarRelogio(iso) { if (iso) A.skew = Date.parse(iso) - Date.now(); }
 function aplicarMarca(cfg) {
   if (cfg && cfg.cor && /^#[0-9a-f]{6}$/i.test(cfg.cor)) document.documentElement.style.setProperty('--brand', cfg.cor);
 }
-function guardarStaff() { try { if (A.staff) sessionStorage.setItem('urnacipa-staff', JSON.stringify(A.staff)); else sessionStorage.removeItem('urnacipa-staff'); } catch (e) { /* indisponível */ } }
-function lerStaff() { try { const t = sessionStorage.getItem('urnacipa-staff'); return t ? JSON.parse(t) : null; } catch (e) { return null; } }
+/* Armazenamento do navegador: só o essencial, e só com aceite no aviso.
+   Aceito: o login da comissão fica guardado na aba (sessionStorage) até sair, fechar a aba ou 30 min sem uso.
+   Recusado: nada é guardado; o login vale só enquanto a página estiver aberta (recarregar pede login de novo). */
+const CHAVE_ARMAZ = 'cipaflow-armazenamento';
+function escolhaArmaz() { try { return localStorage.getItem(CHAVE_ARMAZ); } catch (e) { return null; } }
+function guardarStaff() {
+  try {
+    if (A.staff && escolhaArmaz() === 'aceito') sessionStorage.setItem('urnacipa-staff', JSON.stringify(A.staff));
+    else sessionStorage.removeItem('urnacipa-staff');
+  } catch (e) { /* indisponível */ }
+}
+function lerStaff() { try { if (escolhaArmaz() !== 'aceito') return null; const t = sessionStorage.getItem('urnacipa-staff'); return t ? JSON.parse(t) : null; } catch (e) { return null; } }
+function avisoArmazenamento() {
+  if (escolhaArmaz() || $('#aviso-armaz')) return;
+  const d = document.createElement('div'); d.id = 'aviso-armaz'; d.className = 'cookiebar'; d.setAttribute('role', 'region'); d.setAttribute('aria-label', 'Aviso de cookies');
+  d.innerHTML = `<div class="cookiebar-in"><p><b>Cookies e armazenamento.</b> Este sistema não usa cookies de publicidade nem de rastreamento. Com o seu aceite, guardamos apenas o login da comissão eleitoral nesta aba do navegador, até você sair. Saiba mais na <a href="/privacidade/" target="_blank" rel="noopener">Política de Privacidade</a>.</p>
+    <div class="cookiebar-b"><button type="button" class="btn ghost" id="ck-recusar">Recusar</button><button type="button" class="btn" id="ck-aceitar">Aceitar</button></div></div>`;
+  document.body.appendChild(d);
+  const fechar = v => { try { localStorage.setItem(CHAVE_ARMAZ, v); } catch (e) { /* sem armazenamento: o aviso volta na próxima visita */ } d.remove(); guardarStaff(); };
+  $('#ck-recusar').onclick = () => fechar('recusado');
+  $('#ck-aceitar').onclick = () => fechar('aceito');
+}
+/* encerra a sessão da equipe: apaga no servidor, no navegador e na memória da página */
+async function sairPainel(motivo) {
+  const tk = A.staff && A.staff.token;
+  if (tk) { try { await API.equipeSair(tk); } catch (e) { /* já expirada */ } }
+  A.staff = null; A.painel = null; A.codigos = null; A.provisoria = null; A.equipe = null; A.logItens = null;
+  try { sessionStorage.removeItem('urnacipa-staff'); } catch (e) { /* indisponível */ }
+  A.view = 'eleitor'; A.tab = 'acomp';
+  await carregarEstado().catch(() => {}); render(); window.scrollTo(0, 0);
+  if (motivo) toast(motivo);
+}
+/* 30 minutos sem uso: a equipe sai sozinha; a cédula aberta volta ao início em 10 minutos */
+let ultimoUso = Date.now();
+['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { ultimoUso = Date.now(); }, { passive: true }));
+setInterval(() => {
+  if (A.staff && Date.now() - ultimoUso > 30 * 60000) sairPainel('Sessão encerrada por inatividade (30 minutos sem uso). Entre novamente.');
+  if (A.voto && A.voto.step === 'cedula' && A.voto.desde && Date.now() - A.voto.desde > 10 * 60000) {
+    A.voto = { step: 'login', token: null, nome: '', escolha: null }; renderEleitor(); toast('O tempo para votar terminou. Entre novamente com o seu código.');
+  }
+}, 30000);
 
 const ICON = {
   comissao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"></path><path d="M16 4.5a3 3 0 010 6"></path><path d="M18 14.5c1.9.8 3 2.8 3 5.5"></path></svg>'
@@ -934,11 +993,12 @@ function telaInicio() {
         <div class="field"><label for="v-mat">Matrícula</label><input class="input" id="v-mat" inputmode="text" autocapitalize="characters" ${aberta ? '' : 'disabled'}></div>
         <div class="field"><label for="v-nasc">Data de nascimento</label><input class="input" id="v-nasc" inputmode="numeric" placeholder="dd/mm/aaaa" ${aberta ? '' : 'disabled'}></div>
         <div class="field"><label for="v-cod">Código de acesso</label><input class="input code" id="v-cod" placeholder="XXXX-XXXX" autocapitalize="characters" spellcheck="false" ${aberta ? '' : 'disabled'}><span class="hint">Está na cédula entregue pelo RH. Perdeu? Procure um membro da comissão eleitoral com seu crachá.</span></div>
+        <label class="aceite"><input type="checkbox" id="v-aceite"><span>Li e aceito os <a href="/termos/" target="_blank" rel="noopener">Termos de Uso</a> e estou ciente da <a href="/privacidade/" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
         <div id="v-err" class="msg err" role="alert" hidden></div>
         <button class="btn big" id="v-entrar" ${aberta ? '' : 'disabled'}>Entrar e votar</button>
       </form>
     </div>
-  </main>`;
+  </main>${rodapeLegal()}`;
 }
 function bindInicio() {
   const f = $('#f-login'); if (!f) return;
@@ -948,6 +1008,7 @@ function bindInicio() {
     const err = $('#v-err'); err.hidden = true;
     const mat = $('#v-mat').value.trim(), nasc = parseDataBR($('#v-nasc').value), cod = $('#v-cod').value.trim();
     if (!mat || !nasc || cod.replace(/[^A-Z0-9]/gi, '').length !== 8) { err.textContent = 'Preencha matrícula, data de nascimento (dd/mm/aaaa) e o código de 8 caracteres.'; err.hidden = false; return; }
+    if (!$('#v-aceite').checked) { err.textContent = 'Para votar, marque que leu e aceita os Termos de Uso e a Política de Privacidade.'; err.hidden = false; return; }
     const b = $('#v-entrar'); b.disabled = true; b.textContent = 'Conferindo…';
     try {
       const r = await API.eleitorEntrar(mat, nasc, cod);
@@ -1046,15 +1107,18 @@ function renderEquipeLogin() {
     <form id="f-staff" class="stack" novalidate>
       <div class="field"><label for="s-login">Login</label><input class="input" id="s-login" autocapitalize="none" autocomplete="username"></div>
       <div class="field"><label for="s-senha">Senha</label><input class="input" id="s-senha" type="password" autocomplete="current-password"></div>
+      <label class="aceite"><input type="checkbox" id="s-aceite"><span>Li e aceito os <a href="/termos/" target="_blank" rel="noopener">Termos de Uso</a> e estou ciente da <a href="/privacidade/" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
       <div id="s-err" class="msg err" role="alert" hidden></div>
       <button class="btn big" id="s-entrar">Entrar no painel</button>
     </form>
     <button class="linkbtn" id="s-volta">Voltar para a votação</button>
-  </div></main>` + demoBand();
+  </div>${rodapeLegal()}</main>` + demoBand();
   bindDemoBand();
   bindMast(); $('#s-volta').onclick = () => { A.view = 'eleitor'; render(); };
   $('#f-staff').addEventListener('submit', async ev => {
-    ev.preventDefault(); const err = $('#s-err'); err.hidden = true; const b = $('#s-entrar'); b.disabled = true;
+    ev.preventDefault(); const err = $('#s-err'); err.hidden = true;
+    if (!$('#s-aceite').checked) { err.textContent = 'Para entrar, marque que leu e aceita os Termos de Uso e a Política de Privacidade.'; err.hidden = false; return; }
+    const b = $('#s-entrar'); b.disabled = true;
     try {
       const r = await API.equipeEntrar($('#s-login').value, $('#s-senha').value);
       A.staff = { token: r.token, perfil: r.perfil, nome: r.nome, trocar: !!r.trocar_senha }; A.provisoria = r.trocar_senha ? $('#s-senha').value : null; guardarStaff(); A.tab = 'acomp'; A.view = 'painel'; A.codigos = null;
@@ -1138,7 +1202,7 @@ function renderPainel() {
   <hr class="tabrule">
   <main class="wrap painel" id="tabbody"></main>` + demoBand();
   bindDemoBand();
-  $('#b-sair').onclick = async () => { try { await API.equipeSair(A.staff.token); } catch (e) { /* já expirada */ } A.staff = null; A.painel = null; guardarStaff(); A.view = 'eleitor'; await carregarEstado().catch(() => {}); render(); };
+  $('#b-sair').onclick = () => sairPainel('Você saiu do painel.');
   $$('.tab').forEach(b => b.onclick = () => { A.tab = b.dataset.tab; A.editCand = null; A.editMembro = null; renderPainel(); });
   renderAba();
 }
@@ -1560,7 +1624,40 @@ function abaDocumentos() {
         <div style="flex:1;min-width:220px"><div style="font-weight:700">${esc(d.titulo)}</div><div class="small muted">${esc(d.desc)}</div><div class="small muted">${esc(d.info)}</div></div>
         <a class="btn ghost" href="/documentos/${esc(d.arq)}" download="${esc(d.nome)}">Baixar</a></div>`).join('')}
     </div>`).join('')}</div>
+    <div class="card stack" id="aceites-card"><div class="row" style="justify-content:space-between;align-items:center;gap:12px">
+      <div><h3>Aceites dos Termos de Uso e da Política de Privacidade</h3><p class="small muted">Quem marcou o aceite ao entrar: data e hora, endereço de internet (IP) e navegador. Só o administrador vê esta lista, e o "Reiniciar" não a apaga.</p></div>
+      <button class="btn ghost" id="b-aceites-xlsx" disabled>Baixar planilha</button></div>
+      <div id="aceites-lista"><p class="muted small">Carregando…</p></div></div>
   </div>`;
+  carregarAceites();
+}
+let aceitesCache = [];
+async function carregarAceites() {
+  const box = $('#aceites-lista'); if (!box) return;
+  try {
+    const r = await API.aceites(A.staff.token); aceitesCache = r.itens || [];
+    const tipo = t => t === 'eleitor' ? 'Eleitor' : 'Equipe';
+    const nav = u => { u = u || ''; const b = /Edg\//.test(u) ? 'Edge' : /OPR\//.test(u) ? 'Opera' : /Chrome\//.test(u) ? 'Chrome' : /Firefox\//.test(u) ? 'Firefox' : /Safari\//.test(u) ? 'Safari' : 'Outro';
+      const so = /Android/.test(u) ? 'Android' : /iPhone|iPad/.test(u) ? 'iOS' : /Windows/.test(u) ? 'Windows' : /Mac OS/.test(u) ? 'macOS' : /Linux/.test(u) ? 'Linux' : ''; return so ? `${b} · ${so}` : b; };
+    const lim = 300, vis = aceitesCache.slice(0, lim);
+    box.innerHTML = aceitesCache.length ? `<p class="small muted">${aceitesCache.length} registro(s) · versão atual dos termos: ${esc(r.versao)}${aceitesCache.length > lim ? ` · mostrando os ${lim} mais recentes (a planilha traz todos)` : ''}</p>
+      <div class="scroll"><table class="tbl"><thead><tr><th>Data e hora</th><th>Tipo</th><th>Nome</th><th>Matrícula / login</th><th>Empresa</th><th>IP</th><th>Navegador</th><th>Versão</th></tr></thead><tbody>
+      ${vis.map(a => `<tr><td class="num">${esc(fmtDT(a.quando))}</td><td>${tipo(a.tipo)}</td><td>${esc(a.nome)}</td><td class="mono">${esc(a.referencia)}</td><td>${esc(a.empresa || '—')}</td><td class="mono small">${esc(a.ip || '—')}</td><td class="small" title="${esc(a.navegador || '')}">${esc(nav(a.navegador))}</td><td class="small">${esc(a.versao)}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="muted small">Nenhum aceite registrado ainda.</p>';
+    const b = $('#b-aceites-xlsx'); if (b) { b.disabled = !aceitesCache.length; b.onclick = baixarAceites; }
+  } catch (e) { box.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+async function baixarAceites() {
+  const b = $('#b-aceites-xlsx'); b.disabled = true;
+  try {
+    await loadScript(LIB.xlsx);
+    const ws = XLSX.utils.aoa_to_sheet([['Data e hora (Brasília)', 'Tipo', 'Nome', 'Matrícula / login', 'Empresa', 'CNPJ', 'IP', 'Navegador', 'Versão dos termos'],
+      ...aceitesCache.map(a => [fmtDT(a.quando), a.tipo === 'eleitor' ? 'Eleitor' : 'Equipe', a.nome, a.referencia, a.empresa || '', a.cnpj || '', a.ip || '', a.navegador || '', a.versao])]);
+    ws['!cols'] = [{ wch: 18 }, { wch: 9 }, { wch: 32 }, { wch: 16 }, { wch: 32 }, { wch: 20 }, { wch: 16 }, { wch: 60 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Aceites');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    await salvarArquivo('aceites-termos-cipaflow.xlsx', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  } catch (e) { toast(e.message); } finally { b.disabled = false; }
 }
 
 /* ---- Cédulas ---- */
@@ -1862,6 +1959,7 @@ async function baixarListaEntrega(lista, cfg) {
 /* =====================================================================
    PAINEL DE TESTES (somente demonstração)
    ===================================================================== */
+function rodapeLegal() { return `<p class="legal small muted"><a href="/termos/" target="_blank" rel="noopener">Termos de Uso</a> · <a href="/privacidade/" target="_blank" rel="noopener">Política de Privacidade</a> · CipaFlow · JL Consultoria LTDA</p>`; }
 function demoBand() { return DEMO ? `<div class="demo-band"><button class="btn" id="b-demo"><span class="hide-sm">Demonstração · </span>Painel de testes</button></div>` : ''; }
 function bindDemoBand() { const b = $('#b-demo'); if (b) b.onclick = abrirDemo; }
 function abrirDemo() {
@@ -1930,6 +2028,7 @@ setInterval(async () => {
   if (A.view === 'eleitor' && A.voto.step === 'login' && !document.activeElement.matches('input')) { try { await carregarEstado(); renderEleitor(); } catch (e) { /* tenta de novo depois */ } }
 }, 60000);
 (async function iniciar() {
+  avisoArmazenamento();
   try { await carregarEstado(); } catch (e) {
     $('#app').innerHTML = `<main class="wrap narrow voter"><div class="msg err">${esc(e.message)}</div></main>`; return;
   }
