@@ -45,6 +45,17 @@ textarea.input{resize:vertical}
 .mono{font-family:var(--f-mono)}
 .num{font-variant-numeric:tabular-nums}
 
+/* tela de carregamento (skeleton) */
+.sk{display:block;border-radius:8px;background:linear-gradient(90deg,#e1e8e3 25%,#f2f5f3 45%,#e1e8e3 65%);background-size:300% 100%;animation:sk 1.3s ease-in-out infinite}
+.mast .sk{background:linear-gradient(90deg,rgba(255,255,255,.18) 25%,rgba(255,255,255,.32) 45%,rgba(255,255,255,.18) 65%);background-size:300% 100%}
+@keyframes sk{0%{background-position:100% 0}100%{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+.sk-line{height:14px;margin:8px 0}
+.sk-in{height:46px;margin:6px 0 16px;border-radius:10px}
+.sk-row{display:flex;gap:12px;align-items:center}
+.sk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
 /* faixa da empresa */
 .mast{background:var(--brand);color:var(--on-brand)}
 .mast .wrap{display:flex;align-items:center;gap:14px;padding-block:14px}
@@ -253,7 +264,17 @@ body.has-urna .demo-band{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
-<div id="app"></div>
+<div id="app" aria-busy="true">
+  <header class="mast"><div class="wrap"><span class="mast-logo"><span class="sk" style="width:40px;height:40px"></span></span>
+    <div style="flex:1;min-width:0"><span class="sk" style="width:min(260px,60%);height:18px"></span><span class="sk" style="width:min(160px,40%);height:13px;margin-top:8px"></span></div></div></header>
+  <main class="wrap narrow voter"><div class="card">
+    <span class="sk" style="width:55%;height:26px"></span><span class="sk sk-line" style="width:85%"></span><span class="sk sk-line" style="width:70%;margin-bottom:22px"></span>
+    <span class="sk sk-line" style="width:30%;height:12px"></span><span class="sk sk-in"></span>
+    <span class="sk sk-line" style="width:40%;height:12px"></span><span class="sk sk-in"></span>
+    <span class="sk sk-line" style="width:35%;height:12px"></span><span class="sk sk-in"></span>
+    <span class="sk" style="height:54px;border-radius:12px;margin-top:8px"></span>
+  </div><span class="sr-only">Carregando a votação…</span></main>
+</div>
 <div id="toast" class="toast" role="status" hidden></div>
 
 <script>
@@ -272,7 +293,9 @@ const DEMO = !CONFIG.SUPABASE_URL;
 const TZ = 'America/Sao_Paulo';
 const LIB = {
   jspdf: '/assets/js/jspdf.umd.min.js',
-  xlsx: '/assets/js/xlsx.full.min.js'
+  xlsx: '/assets/js/xlsx.full.min.js',
+  docs: '/assets/js/documentos.js',   // gerador da ata e do relatório (o mesmo usado na assinatura digital)
+  qr: '/assets/js/qrcode.js'
 };
 
 /* ---------------- utilitários ---------------- */
@@ -411,6 +434,19 @@ async function rpc(fn, args = {}) {
   if (data && data.ok === false) throw new Error(data.erro);
   return data;
 }
+/* assinatura digital: a função "assinar-documento" do Supabase monta o documento com os dados do banco e assina com o e-CPF */
+async function assinarNoServidor(token, documento) {
+  let r;
+  try {
+    r = await fetch(`${CONFIG.SUPABASE_URL.replace(/\/$/, '')}/functions/v1/assinar-documento`, {
+      method: 'POST', headers: { apikey: CONFIG.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ token, documento })
+    });
+  } catch (e) { throw new Error('Sem conexão com a função de assinatura. Verifique a internet e se a função "assinar-documento" foi criada no Supabase.'); }
+  if ((r.headers.get('content-type') || '').includes('application/pdf')) return { blob: await r.blob(), nome: r.headers.get('x-arquivo') || documento + '-assinado.pdf' };
+  let d = null; try { d = await r.json(); } catch (e) { /* sem corpo */ }
+  if (!d || d.ok === false || !r.ok) throw new Error((d && (d.erro || d.message || d.msg)) || 'A função de assinatura não respondeu. Confira se ela foi criada no Supabase (veja o LEIA-ME).');
+  return d;
+}
 /* versão dos Termos de Uso e da Política de Privacidade (igual à do banco e das páginas /termos e /privacidade) */
 const VERSAO_TERMOS = '2026-11-07';
 const RealAPI = {
@@ -419,6 +455,19 @@ const RealAPI = {
   eleitorEntrar: (m, n, c) => rpc('eleitor_entrar', { p_matricula: m, p_nascimento: n, p_codigo: c, p_termos: VERSAO_TERMOS }),
   votar: (t, e) => rpc('votar', { p_token: t, p_escolha: e }),
   equipeEntrar: (l, s) => rpc('equipe_entrar', { p_login: l, p_senha: s, p_termos: VERSAO_TERMOS }),
+  equipeEntrarCodigo: (d, c) => rpc('equipe_entrar_codigo', { p_desafio: d, p_codigo: c }),
+  seguranca: t => rpc('admin_minha_seguranca', { p_token: t }),
+  doisFatoresIniciar: t => rpc('admin_2fa_iniciar', { p_token: t }),
+  doisFatoresConfirmar: (t, c) => rpc('admin_2fa_confirmar', { p_token: t, p_codigo: c }),
+  doisFatoresDesativar: (t, s, c) => rpc('admin_2fa_desativar', { p_token: t, p_senha: s, p_codigo: c }),
+  assinaturas: t => rpc('admin_assinaturas', { p_token: t }),
+  assinar: (t, doc) => assinarNoServidor(t, doc),
+  documentosDisponiveis: t => rpc('documentos_disponiveis', { p_token: t }),
+  baixarDocumento: (t, d) => rpc('baixar_documento', { p_token: t, p_documento: d }),
+  criarLink: (t, d, n) => rpc('admin_criar_link', { p_token: t, p_documento: d, p_dias: n }),
+  links: t => rpc('admin_links', { p_token: t }),
+  revogarLink: (t, id) => rpc('admin_revogar_link', { p_token: t, p_id: id }),
+  linkBaixar: (l, info) => rpc('link_baixar', { p_link: l, p_so_info: !!info }),
   aceites: t => rpc('admin_aceites', { p_token: t }),
   equipeSair: t => rpc('equipe_sair', { p_token: t }),
   trocarSenha: (t, a, n) => rpc('trocar_senha', { p_token: t, p_atual: a, p_nova: n }),
@@ -461,6 +510,22 @@ function makeDemo() {
   const aceite = (tipo, ref, nome) => { S.aceites = S.aceites || []; const c = S.config || {};
     if (!S.aceites.some(a => a.tipo === tipo && a.referencia === ref && (a.cnpj || '') === (c.cnpj || '') && a.versao === VERSAO_TERMOS))
       S.aceites.push({ quando: iso(now()), tipo, referencia: ref, nome, empresa: c.empresa || '', cnpj: c.cnpj || '', versao: VERSAO_TERMOS, ip: '127.0.0.1 (demonstração)', navegador: navigator.userAgent }); };
+  // verificação em duas etapas (mesmo cálculo do banco: RFC 6238, SHA-1, 30 s, 6 dígitos)
+  const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const b32bytes = t => { let bits = ''; for (const ch of t) bits += B32.indexOf(ch).toString(2).padStart(5, '0'); const o = []; for (let i = 0; i + 8 <= bits.length; i += 8) o.push(parseInt(bits.slice(i, i + 8), 2)); return new Uint8Array(o); };
+  async function totp(seg, passo) {
+    const k = await crypto.subtle.importKey('raw', b32bytes(seg), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+    const msg = new Uint8Array(8); let p = passo; for (let i = 7; i >= 0; i--) { msg[i] = p & 255; p = Math.floor(p / 256); }
+    const h = new Uint8Array(await crypto.subtle.sign('HMAC', k, msg)); const o = h[19] & 15;
+    return String((((h[o] & 127) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]) % 1000000).padStart(6, '0');
+  }
+  async function totpConfere(m, cod, seg) {
+    const c = String(cod || '').replace(/\D/g, ''); seg = seg || m.totp_segredo; if (c.length !== 6 || !seg) return false;
+    const agora = Math.floor(Date.now() / 30000);   // relógio real (o aplicativo do celular não conhece o relógio simulado)
+    for (let d = -1; d <= 1; d++) if (agora + d > (m.totp_ultimo || 0) && await totp(seg, agora + d) === c) { m.totp_ultimo = agora + d; return true; }
+    return false;
+  }
+  const abrirSessao = m => { const t = tok(); S.sess[t] = { id: m.id }; log(m.nome, 'Acesso ao painel', m.perfil + (m.totp_ativo ? ' · com verificação em duas etapas' : '')); save(); return { ok: true, token: t, nome: m.nome, perfil: m.perfil, trocar_senha: !!m.trocar_senha }; };
   const senhaOk = p => { if (String(p || '').length < 10) throw new Error('A senha precisa ter pelo menos 10 caracteres.'); if (/TROQUE-ESTA-SENHA/i.test(p)) throw new Error('Troque a senha de exemplo por uma senha sua.'); };
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* armazenamento indisponível */ } };
   const load = () => { try { const t = localStorage.getItem(KEY); return t ? JSON.parse(t) : null; } catch (e) { return null; } };
@@ -541,7 +606,7 @@ function makeDemo() {
       confirmacoes_encerramento: (S.prorrogacoes.find(p => p.tipo === 'encerramento' && p.concluida_em) || { confirmacoes: [] }).confirmacoes.map(c => ({ nome: c.nome, em: c.em })),
       aptos, votantes, brancos, nulos, total_votos: S.votos.length, candidatos: cands,
       eventos: S.log.filter(l => EVENTOS.includes(l.acao) && (!S.eleicao.aberta_em || Date.parse(l.quando) >= Date.parse(S.eleicao.aberta_em))),
-      equipe: S.equipe.filter(m => m.ativo && m.perfil !== 'admin').sort((a, b) => b.perfil.localeCompare(a.perfil) || a.nome.localeCompare(b.nome)).map(m => ({ nome: m.nome, perfil: m.perfil })),
+      equipe: S.equipe.filter(m => m.ativo && m.perfil !== 'admin').sort((a, b) => b.perfil.localeCompare(a.perfil) || a.nome.localeCompare(b.nome)).map(m => ({ nome: m.nome, perfil: m.perfil, matricula: m.matricula || '' })),
       preparacao: preparacao(),
       votos_por_fase: Object.entries(S.votos.reduce((a, v) => { a[v.fase] = (a[v.fase] || 0) + 1; return a; }, {})).map(([fase, votos]) => ({ fase: +fase, votos }))
     });
@@ -572,10 +637,46 @@ function makeDemo() {
       await sleep(200); termosOk(); const m = S.equipe.find(x => x.ativo && x.login === String(l).trim().toLowerCase());
       if (m && m.bloqueado_ate && Date.parse(m.bloqueado_ate) > now()) throw new Error(`Acesso bloqueado por tentativas incorretas. Tente de novo depois das ${horaHM(m.bloqueado_ate)}.`);
       if (!m || m.senha !== s) { if (m) { m.tentativas = (m.tentativas || 0) + 1; m.bloqueado_ate = bloqueio(m.tentativas); if (m.bloqueado_ate) log('Sistema', 'Login bloqueado', `${m.nome}: ${m.tentativas} senhas incorretas. Acesso bloqueado até ${fmtDT(m.bloqueado_ate)}.`); save(); } throw new Error('Login ou senha incorretos.'); }
-      m.tentativas = 0; m.bloqueado_ate = null; aceite('equipe', m.login, m.nome);
-      const t = tok(); S.sess[t] = { id: m.id }; log(m.nome, 'Acesso ao painel', m.perfil); save();
-      return { ok: true, token: t, nome: m.nome, perfil: m.perfil, trocar_senha: !!m.trocar_senha };
+      aceite('equipe', m.login, m.nome);
+      if (m.totp_ativo) { S.desafios = S.desafios || {}; const d = tok(); S.desafios[d] = { id: m.id, expira: now() + 300000 }; save(); return { ok: true, segunda_etapa: true, desafio: d, nome: m.nome }; }
+      m.tentativas = 0; m.bloqueado_ate = null; return abrirSessao(m);
     },
+    async equipeEntrarCodigo(d, cod) {
+      await sleep(200); const q = (S.desafios || {})[d];
+      if (!q || q.expira < now()) throw new Error('O tempo para digitar o código terminou. Entre de novo com login e senha.');
+      const m = S.equipe.find(x => x.id === q.id && x.ativo);
+      if (m.bloqueado_ate && Date.parse(m.bloqueado_ate) > now()) { delete S.desafios[d]; save(); throw new Error(`Acesso bloqueado por tentativas incorretas. Tente de novo depois das ${horaHM(m.bloqueado_ate)}.`); }
+      if (!await totpConfere(m, cod)) { m.tentativas = (m.tentativas || 0) + 1; m.bloqueado_ate = bloqueio(m.tentativas); if (m.bloqueado_ate) { delete S.desafios[d]; log('Sistema', 'Login bloqueado', `${m.nome}: ${m.tentativas} tentativas incorretas. Acesso bloqueado até ${fmtDT(m.bloqueado_ate)}.`); } save(); throw new Error('Código incorreto. Confira o código no aplicativo e tente de novo.'); }
+      delete S.desafios[d]; m.tentativas = 0; m.bloqueado_ate = null; return abrirSessao(m);
+    },
+    async seguranca(t) { const m = staff(t, ['admin']); return { ok: true, totp_ativo: !!m.totp_ativo, responsavel_tecnico: false }; },
+    async doisFatoresIniciar(t) {
+      const m = staff(t, ['admin']); if (m.totp_ativo) throw new Error('A verificação em duas etapas já está ativa.');
+      if (!(window.crypto && crypto.subtle)) throw new Error('Na demonstração, a verificação em duas etapas só funciona com o site aberto em https.');
+      const r = crypto.getRandomValues(new Uint8Array(32)); let seg = ''; r.forEach(v => { seg += B32[v % 32]; });
+      m.totp_segredo = seg; m.totp_ultimo = null; save();
+      return { ok: true, segredo: seg, uri: `otpauth://totp/CipaFlow:${m.login}?secret=${seg}&issuer=CipaFlow&algorithm=SHA1&digits=6&period=30` };
+    },
+    async doisFatoresConfirmar(t, cod) {
+      const m = staff(t, ['admin']); if (m.totp_ativo) throw new Error('A verificação em duas etapas já está ativa.');
+      if (!m.totp_segredo) throw new Error('Comece pelo botão Ativar.');
+      if (!await totpConfere(m, cod)) { save(); throw new Error('Código incorreto. Confira o código no aplicativo e tente de novo.'); }
+      m.totp_ativo = true; log(m.nome, 'Verificação em duas etapas ativada', 'Login com senha e código do aplicativo autenticador'); save(); return { ok: true };
+    },
+    async doisFatoresDesativar(t, senha, cod) {
+      const m = staff(t, ['admin']); if (!m.totp_ativo) throw new Error('A verificação em duas etapas não está ativa.');
+      if (m.senha !== senha) throw new Error('Senha incorreta.');
+      if (!await totpConfere(m, cod)) { save(); throw new Error('Código incorreto.'); }
+      m.totp_ativo = false; m.totp_segredo = null; m.totp_ultimo = null; log(m.nome, 'Verificação em duas etapas desativada'); save(); return { ok: true };
+    },
+    async assinaturas(t) { staff(t, ['admin']); return { ok: true, itens: [] }; },
+    async assinar() { throw new Error('A assinatura digital funciona só no site oficial, com o certificado do responsável técnico.'); },
+    async documentosDisponiveis(t) { staff(t, TODOS); return { ok: true, itens: [] }; },
+    async baixarDocumento() { throw new Error('Na demonstração não há documentos assinados.'); },
+    async criarLink() { throw new Error('Links com validade funcionam só no site oficial.'); },
+    async links() { return { ok: true, itens: [] }; },
+    async revogarLink() { throw new Error('Links com validade funcionam só no site oficial.'); },
+    async linkBaixar() { throw new Error('Links com validade funcionam só no site oficial.'); },
     async equipeSair(t) { delete S.sess[t]; save(); return { ok: true }; },
     async aceites(t) { await sleep(150); staff(t, ['admin']); return { ok: true, versao: VERSAO_TERMOS, itens: (S.aceites || []).slice().sort((a, b) => b.quando.localeCompare(a.quando)) }; },
     async trocarSenha(t, a, n) { const m = sessao(t); if (m.senha !== a) throw new Error('A senha atual não confere.'); senhaOk(n); if (n === a) throw new Error('A nova senha precisa ser diferente da atual.'); m.senha = n; m.trocar_senha = false; log(m.nome, 'Senha alterada'); save(); return { ok: true }; },
@@ -721,7 +822,7 @@ function makeDemo() {
       log(m.nome, 'Códigos gerados', `${out.length} códigos${so ? ' (somente novos eleitores)' : ' (todos os anteriores invalidados)'}`); save();
       return { ok: true, codigos: out };
     },
-    async listarEquipe(t) { staff(t, ['admin']); return clone(S.equipe.filter(m => m.ativo).sort((a, b) => a.perfil.localeCompare(b.perfil) || a.nome.localeCompare(b.nome)).map(({ id, login, nome, perfil, trocar_senha, bloqueado_ate }) => ({ id, login, nome, perfil, trocar_senha: !!trocar_senha, bloqueado_ate: bloqueado_ate && Date.parse(bloqueado_ate) > now() ? bloqueado_ate : null }))); },
+    async listarEquipe(t) { staff(t, ['admin']); return clone(S.equipe.filter(m => m.ativo).sort((a, b) => a.perfil.localeCompare(b.perfil) || a.nome.localeCompare(b.nome)).map(({ id, login, nome, perfil, matricula, trocar_senha, bloqueado_ate, totp_ativo }) => ({ id, login, nome, perfil, matricula: matricula || null, totp_ativo: !!totp_ativo, responsavel_tecnico: false, trocar_senha: !!trocar_senha, bloqueado_ate: bloqueado_ate && Date.parse(bloqueado_ate) > now() ? bloqueado_ate : null }))); },
     async desbloquearMembro(t, id) {
       const m = staff(t, ['admin']); const x = S.equipe.find(q => q.id === +id && q.ativo); if (!x) throw new Error('Acesso não encontrado.');
       x.tentativas = 0; x.bloqueado_ate = null; log(m.nome, 'Acesso desbloqueado', `${x.nome} (${x.perfil})`); save(); return { ok: true };
@@ -737,17 +838,18 @@ function makeDemo() {
       return { ok: true, senha: sn, nome: x.nome, login: x.login };
     },
     async salvarMembro(t, x) {
-      const m = staff(t, ['admin']); const E = atualizar(); const login = String(x.login || '').trim().toLowerCase(), nome = String(x.nome || '').trim(), senha = String(x.senha || '');
+      const m = staff(t, ['admin']); const E = atualizar(); const login = String(x.login || '').trim().toLowerCase(), nome = String(x.nome || '').trim(), senha = String(x.senha || ''), matricula = String(x.matricula || '').trim() || null;
       if (['aberta', 'aguardando_prorrogacao', 'aguardando_encerramento'].includes(E.status)) throw new Error('Com a votação em andamento, a equipe fica travada: não é possível criar acessos nem mudar nome, login ou perfil. Para senha esquecida ou acesso bloqueado, use Desbloquear ou Senha provisória.');
       if (!login || !nome) throw new Error('Informe login e nome.');
+      if (x.perfil !== 'admin' && !matricula) throw new Error('Informe a matrícula do presidente e dos membros da comissão eleitoral.');
       if (senha) senhaOk(senha);
       if (!x.id) {
         if (!senha) throw new Error('Defina uma senha inicial.');
         if (S.equipe.some(e => e.login === login)) throw new Error('Já existe alguém com este login.');
-        S.equipe.push({ id: ++S.seq, login, nome, perfil: x.perfil, senha, ativo: true, criado_em: iso(now()) });
+        S.equipe.push({ id: ++S.seq, login, nome, perfil: x.perfil, matricula, senha, ativo: true, criado_em: iso(now()) });
       } else {
         if (+x.id === m.id && x.perfil !== 'admin') throw new Error('Você não pode tirar o seu próprio perfil de administrador.');
-        const e = S.equipe.find(q => q.id === +x.id); Object.assign(e, { login, nome, perfil: x.perfil }); if (senha) { e.senha = senha; e.tentativas = 0; e.bloqueado_ate = null; }
+        const e = S.equipe.find(q => q.id === +x.id); Object.assign(e, { login, nome, perfil: x.perfil, matricula }); if (senha) { e.senha = senha; e.tentativas = 0; e.bloqueado_ate = null; }
       }
       log(m.nome, 'Equipe alterada', `${nome} (${x.perfil})`); save(); return { ok: true };
     },
@@ -804,12 +906,12 @@ function makeDemo() {
     S.config = { cadastrada_em: new Date(t0 - 4 * 86400000).toISOString(), cadastrada_por: 'Administrador do sistema', empresa: 'Metalúrgica Exemplo Ltda.', cnpj: '00.000.000/0001-00', endereco: 'Av. Industrial, 1000 · Distrito Industrial · São Paulo/SP', titulo: 'Eleição da CIPA', gestao: '2026/2027', logo: logoDemo(), cor: '#1c3d5a', url_site: 'www.cipaflow.com.br/votar', vagas_titulares: 2, vagas_suplentes: 2, duracao_horas: 24, confirmacoes_necessarias: 3, situacoes_aptas: ['Ativo', 'Férias'] };
     S.equipe = [
       { id: 1, login: 'admin', nome: 'Administrador do sistema', perfil: 'admin', senha: 'admin123', ativo: true, criado_em: new Date(t0 - 5 * 86400000).toISOString() },
-      { id: 2, login: 'presidente', nome: 'Marta Ribeiro Lopes', perfil: 'presidente', senha: 'presidente123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
-      { id: 3, login: 'mesario1', nome: 'Anderson Costa', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
-      { id: 4, login: 'mesario2', nome: 'Beatriz Nogueira', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
-      { id: 5, login: 'mesario3', nome: 'Cláudio Farias', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
-      { id: 6, login: 'mesario4', nome: 'Daniela Prado', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
-      { id: 7, login: 'mesario5', nome: 'Edson Martins', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() }
+      { id: 2, login: 'presidente', matricula: '10421', nome: 'Marta Ribeiro Lopes', perfil: 'presidente', senha: 'presidente123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 3, login: 'mesario1', matricula: '10877', nome: 'Anderson Costa', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 4, login: 'mesario2', matricula: '11230', nome: 'Beatriz Nogueira', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 5, login: 'mesario3', matricula: '09815', nome: 'Cláudio Farias', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 6, login: 'mesario4', matricula: '12054', nome: 'Daniela Prado', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() },
+      { id: 7, login: 'mesario5', matricula: '10393', nome: 'Edson Martins', perfil: 'mesario', senha: 'mesario123', ativo: true, criado_em: new Date(t0 - 3 * 86400000 + 120000).toISOString() }
     ];
     const nomes = ['Adriana', 'Alexandre', 'Aline', 'Antônio', 'Bruno', 'Camila', 'Carlos', 'Cristiane', 'Diego', 'Eduardo', 'Elaine', 'Fábio', 'Fernanda', 'Gabriel', 'Gustavo', 'Juliana', 'Leandro', 'Luana', 'Luciano', 'Marcelo', 'Mariana', 'Natália', 'Paulo', 'Priscila', 'Rafael', 'Renata', 'Rodrigo', 'Sandra', 'Thiago', 'Vanessa', 'Wellington', 'Yasmin'];
     const sob = ['Almeida', 'Barbosa', 'Cardoso', 'Carvalho', 'Castro', 'Dias', 'Fernandes', 'Freitas', 'Gomes', 'Lima', 'Machado', 'Martins', 'Melo', 'Moreira', 'Oliveira', 'Pereira', 'Pinto', 'Ramos', 'Rocha', 'Santos', 'Silva', 'Soares', 'Souza', 'Teixeira', 'Vieira'];
@@ -953,7 +1055,7 @@ async function carregarEstado() {
 function renderEleitor() {
   document.body.classList.toggle('has-urna', A.voto.step === 'cedula'); document.body.classList.remove('is-painel');
   const E = A.est; const app = $('#app');
-  if (!E) { app.innerHTML = `<main class="wrap narrow voter"><p class="muted">Carregando…</p></main>`; return; }
+  if (!E) { app.innerHTML = `<main class="wrap narrow voter"><div class="card">${skLinhas(6)}</div></main>`; return; }
   let corpo = '';
   if (A.voto.step === 'cedula') corpo = telaCedula();
   else if (A.voto.step === 'fim') corpo = telaFim();
@@ -1121,9 +1223,34 @@ function renderEquipeLogin() {
     const b = $('#s-entrar'); b.disabled = true;
     try {
       const r = await API.equipeEntrar($('#s-login').value, $('#s-senha').value);
-      A.staff = { token: r.token, perfil: r.perfil, nome: r.nome, trocar: !!r.trocar_senha }; A.provisoria = r.trocar_senha ? $('#s-senha').value : null; guardarStaff(); A.tab = 'acomp'; A.view = 'painel'; A.codigos = null;
-      await abrirPainel();
+      if (r.segunda_etapa) { telaCodigo(r); return; }
+      await entrouNoPainel(r, $('#s-senha').value);
     } catch (e) { err.textContent = e.message; err.hidden = false; b.disabled = false; }
+  });
+}
+async function entrouNoPainel(r, senha) {
+  A.staff = { token: r.token, perfil: r.perfil, nome: r.nome, trocar: !!r.trocar_senha }; A.provisoria = r.trocar_senha ? senha : null; guardarStaff(); A.tab = 'acomp'; A.view = 'painel'; A.codigos = null; A.seg = null;
+  await abrirPainel();
+}
+// segunda etapa do login (administrador com verificação em duas etapas): código de 6 dígitos do aplicativo
+function telaCodigo(r) {
+  const card = $('#f-staff').closest('.card');
+  card.innerHTML = `<div><div class="eyebrow">Verificação em duas etapas</div><h1>Código do aplicativo</h1></div>
+    <p class="muted">Olá, ${esc(r.nome)}. Abra o aplicativo autenticador no celular (Google Authenticator, Microsoft Authenticator ou similar) e digite o código de 6 dígitos de <b>CipaFlow</b>.</p>
+    <form id="f-cod" class="stack" novalidate>
+      <div class="field"><label for="s-cod">Código de 6 dígitos</label><input class="input mono" id="s-cod" inputmode="numeric" autocomplete="one-time-code" maxlength="7" style="font-size:1.5rem;letter-spacing:.3em;max-width:12rem"></div>
+      <div id="s-err2" class="msg err" role="alert" hidden></div>
+      <button class="btn big" id="s-conf">Confirmar e entrar</button>
+    </form>
+    <p class="small muted">O código muda a cada 30 segundos. Você tem 5 minutos para digitar. Perdeu o celular? Veja "Celular perdido" no LEIA-ME do sistema.</p>
+    <button class="linkbtn" id="s-volta2">Voltar</button>`;
+  const inp = $('#s-cod'); inp.focus();
+  $('#s-volta2').onclick = () => renderEquipeLogin();
+  $('#f-cod').addEventListener('submit', async ev => {
+    ev.preventDefault(); const err = $('#s-err2'); err.hidden = true; const b = $('#s-conf'); b.disabled = true;
+    try { const s2 = await API.equipeEntrarCodigo(r.desafio, inp.value); await entrouNoPainel(s2, null); }
+    catch (e) { err.textContent = e.message; err.hidden = false; b.disabled = false; inp.select();
+      if (/terminou|bloqueado/.test(e.message)) { b.textContent = 'Entrar de novo'; b.type = 'button'; b.onclick = () => renderEquipeLogin(); } }
   });
 }
 
@@ -1132,6 +1259,7 @@ function renderEquipeLogin() {
    ===================================================================== */
 async function abrirPainel() {
   if (A.staff && A.staff.trocar) { telaNovaSenha(); return; }
+  if (!A.painel) skPainel();
   try { A.painel = await API.painel(A.staff.token); ajustarRelogio(A.painel.agora); aplicarMarca(A.painel.config); }
   catch (e) { toast(e.message); A.staff = null; guardarStaff(); A.view = 'equipe-login'; render(); return; }
   render();
@@ -1356,7 +1484,7 @@ function abaReemitir() {
 
 /* ---- Registro ---- */
 async function abaRegistro() {
-  $('#tabbody').innerHTML = `<div class="stack"><div><h2>Registro de atividades</h2><p class="muted small">Tudo o que a equipe e o sistema fizeram, do mais recente para o mais antigo. Votos não aparecem aqui.</p></div><div id="lg" class="muted">Carregando…</div></div>`;
+  $('#tabbody').innerHTML = `<div class="stack"><div><h2>Registro de atividades</h2><p class="muted small">Tudo o que a equipe e o sistema fizeram, do mais recente para o mais antigo. Votos não aparecem aqui.</p></div><div id="lg">${skTabela(8)}</div></div>`;
   try {
     const L = await API.log(A.staff.token);
     $('#lg').innerHTML = `<div class="scroll"><table class="tbl"><thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Detalhe</th></tr></thead><tbody>
@@ -1367,13 +1495,16 @@ async function abaRegistro() {
 
 /* ---- Resultado ---- */
 async function abaResultado() {
-  $('#tabbody').innerHTML = `<p class="muted">Carregando apuração…</p>`;
+  $('#tabbody').innerHTML = `<div class="stack">${skCards(3)}${skTabela(6)}</div>`;
   try {
     const R = await API.resultado(A.staff.token); A.res = R;
+    const adm = A.painel.perfil === 'admin';
+    if (adm && !A.seg) A.seg = await API.seguranca(A.staff.token).catch(() => null);
+    const rt = adm && A.seg && A.seg.responsavel_tecnico;
     const total = R.total_votos || 0;
     $('#tabbody').innerHTML = `<div class="stack">
-      <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Apuração</div><h2>Resultado da eleição</h2></div><div class="row"><button class="btn" id="b-ata">Baixar ata em PDF</button>${A.painel.perfil === 'admin' ? '<button class="btn ghost" id="b-ata-adm">Baixar ata de verificação (administrador)</button>' : ''}</div></div>
-      ${A.painel.perfil === 'admin' ? '<p class="small muted">A ata de verificação é a via de guarda do administrador: traz o resultado integral, a impressão digital eletrônica do resultado, a conferência de consistência e o registro completo de atividades, para comprovação junto à fiscalização ou em processo judicial.</p>' : ''}
+      <div><div class="eyebrow">Apuração</div><h2>Resultado da eleição</h2></div>
+      <div id="docs-box">${skLinhas(3)}</div>
       ${avisoAdministrativo(R)}
       <dl class="stats">
         <div><dt>Eleitores aptos</dt><dd>${R.aptos}</dd></div><div><dt>Votantes</dt><dd>${R.votantes}</dd></div>
@@ -1390,9 +1521,86 @@ async function abaResultado() {
       <p class="small muted">Desempate pelo maior tempo de serviço (data de admissão mais antiga). Vagas: ${R.config.vagas_titulares} titulares e ${R.config.vagas_suplentes} suplentes.${R.encerramento_tipo !== 'administrativo' && (R.confirmacoes_encerramento || []).length ? ` Encerrada a pedido de ${esc(R.encerrada_por)}, com a confirmação de ${esc(R.confirmacoes_encerramento.map(c => c.nome).join(', '))}.` : ''}</p>
       ${blocoEleitos(R, false)}
     </div>`;
-    const ba = $('#b-ata-adm'); if (ba) ba.onclick = async () => { ba.disabled = true; const t0 = ba.textContent; ba.textContent = 'Gerando PDF…'; try { const L = await API.log(A.staff.token); await baixarAtaAdmin(R, L, A.staff.nome); } catch (e) { toast(e.message); } ba.disabled = false; ba.textContent = t0; };
-    const b = $('#b-ata'); b.onclick = async () => { b.disabled = true; b.textContent = 'Gerando PDF…'; try { await baixarAta(R); } catch (e) { toast(e.message); } b.disabled = false; b.textContent = 'Baixar ata em PDF'; };
+    blocoDocumentos(R, adm, rt);
   } catch (e) { $('#tabbody').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+
+/* Documentos da eleição: só existem depois da assinatura do responsável técnico.
+   Ata: todos os perfis da equipe. Relatório: só administradores. Links com validade: administradores. */
+const ocupado = async (b, fn, txt = 'Gerando PDF…') => { b.disabled = true; const t0 = b.textContent; b.textContent = txt; try { await fn(); } catch (e) { toast(e.message); } b.disabled = false; b.textContent = t0; };
+const b64blob = b64 => { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type: 'application/pdf' }); };
+async function blocoDocumentos(R, adm, rt) {
+  const box = $('#docs-box'); if (!box) return;
+  if (DEMO) {
+    box.innerHTML = `<div class="card stack"><h3>Documentos da eleição</h3>
+      <div class="msg info small">Na demonstração, a ata e o relatório saem sem assinatura. No site oficial, os documentos só ficam disponíveis depois da assinatura digital do responsável técnico.</div>
+      <div class="row"><button class="btn" id="b-ata">Ata de apuração (PDF)</button>${adm ? '<button class="btn ghost" id="b-rel">Relatório de integridade (PDF)</button>' : ''}</div></div>`;
+    $('#b-ata').onclick = () => ocupado($('#b-ata'), () => baixarAta(R));
+    const br = $('#b-rel'); if (br) br.onclick = () => ocupado(br, async () => baixarRelatorio(R, await API.log(A.staff.token)));
+    return;
+  }
+  let D; try { D = await API.documentosDisponiveis(A.staff.token); } catch (e) { box.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; return; }
+  const tem = d => (D.itens || []).find(x => x.documento === d);
+  const tipos = adm ? [['ata', 'Ata de apuração', 'Para a comissão eleitoral e a empresa.'], ['relatorio', 'Relatório de integridade', 'Emitido pela CipaFlow; traz o registro completo de atividades. Só administradores.']] : [['ata', 'Ata de apuração', '']];
+  const podeAssinar = rt && A.seg.totp_ativo;
+  let h = `<div class="card stack"><h3>Documentos da eleição</h3>
+    <p class="small muted">Os documentos ficam disponíveis depois da assinatura digital (e-CPF) do responsável técnico. Todos baixam exatamente o mesmo arquivo assinado.</p>
+    ${rt && !A.seg.totp_ativo ? '<div class="msg attn">Para assinar, ative antes a verificação em duas etapas em <b>Conta e manutenção</b>.</div>' : ''}
+    ${tipos.map(([d, t, sub]) => { const x = tem(d); return `<div class="row" style="justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:10px">
+      <div style="flex:1;min-width:240px"><div style="font-weight:700">${t}</div>
+        ${x ? `<div class="small" style="color:var(--ok-ink)">Assinado digitalmente por ${esc(x.assinado_por)} em ${esc(fmtDT(x.assinado_em))} · verificação <span class="mono">${esc(x.codigo || '')}</span></div>`
+            : '<div class="small muted">Aguardando a assinatura do responsável técnico.</div>'}
+        ${sub ? `<div class="small muted">${sub}</div>` : ''}</div>
+      <div class="row">${x ? `<button class="btn" data-baixar="${d}">Baixar assinado</button>` : ''}${podeAssinar ? `<button class="btn ${x ? 'ghost' : ''}" data-assinar="${d}">${x ? 'Assinar de novo' : 'Assinar e publicar'}</button>` : ''}</div></div>`; }).join('')}
+    ${podeAssinar ? '<p class="small muted">"Assinar de novo" substitui o arquivo para todos. Cada assinatura fica registrada em Conta e manutenção → Assinaturas digitais.</p>' : ''}
+  </div>`;
+  if (adm) h += `<div class="card stack"><h3>Enviar por link com validade</h3>
+    <p class="small muted">Para quem não tem login (RH, diretoria). Quem abrir o link baixa o documento assinado até a data de validade. Cada download fica no registro.</p>
+    ${(D.itens || []).length ? `<div class="row" style="align-items:flex-end">
+      <div class="field"><label for="l-doc">Documento</label><select class="input" id="l-doc">${D.itens.map(x => `<option value="${x.documento}">${esc(x.titulo)}</option>`).join('')}</select></div>
+      <div class="field"><label for="l-dias">Validade</label><select class="input" id="l-dias">${[[1, '1 dia'], [3, '3 dias'], [7, '7 dias'], [15, '15 dias'], [30, '30 dias']].map(([v, t]) => `<option value="${v}" ${v === 7 ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <button class="btn" id="b-link">Gerar link</button></div><div id="l-novo"></div>` : '<p class="small muted">Disponível depois que um documento for assinado.</p>'}
+    <div id="l-lista"></div></div>`;
+  box.innerHTML = h;
+  $$('[data-baixar]', box).forEach(b => b.onclick = () => ocupado(b, async () => { const r = await API.baixarDocumento(A.staff.token, b.dataset.baixar); await salvarArquivo(r.nome, b64blob(r.pdf)); }, 'Baixando…'));
+  $$('[data-assinar]', box).forEach(b => b.onclick = () => ocupado(b, async () => {
+    const r = await API.assinar(A.staff.token, b.dataset.assinar); await salvarArquivo(r.nome, r.blob); toast('Documento assinado e publicado para a equipe.'); blocoDocumentos(R, adm, rt); }, 'Assinando…'));
+  const bl = $('#b-link'); if (bl) bl.onclick = () => ocupado(bl, async () => {
+    const r = await API.criarLink(A.staff.token, $('#l-doc').value, +$('#l-dias').value);
+    const url = `${location.origin}${location.pathname}#doc=${r.link}`;
+    $('#l-novo').innerHTML = `<div class="card stack" style="border:2px solid var(--attn-line)"><p class="small"><b>Link criado</b>, válido até ${esc(fmtDT(r.expira))}. Copie agora: ele não volta a aparecer.</p>
+      <div class="row"><input class="input mono small" id="l-url" readonly value="${esc(url)}" style="flex:1;min-width:260px"><button class="btn ghost" id="l-copiar">Copiar</button></div>
+      <p class="small muted">Envie só para quem deve receber o documento. Se mandar para a pessoa errada, cancele o link na lista abaixo.</p></div>`;
+    $('#l-copiar').onclick = async () => { const i = $('#l-url'); i.select(); try { await navigator.clipboard.writeText(i.value); toast('Link copiado.'); } catch (e) { document.execCommand && document.execCommand('copy'); toast('Link selecionado: use Ctrl+C.'); } };
+    listaLinks();
+  });
+  if (adm) listaLinks();
+}
+async function listaLinks() {
+  const box = $('#l-lista'); if (!box) return;
+  try {
+    const r = await API.links(A.staff.token); const it = r.itens || [];
+    box.innerHTML = it.length ? `<div class="scroll"><table class="tbl"><thead><tr><th>Documento</th><th>Criado</th><th>Válido até</th><th class="r">Downloads</th><th>Situação</th><th></th></tr></thead><tbody>
+      ${it.map(l => `<tr><td>${esc(l.titulo)}</td><td class="small">${esc(fmtDT(l.criado_em))}<div class="muted">${esc(l.criado_por)}</div></td><td class="num">${esc(fmtDT(l.expira))}</td>
+        <td class="r num">${l.downloads}${l.ultimo_download ? `<div class="small muted">último ${esc(fmtDT(l.ultimo_download))}</div>` : ''}</td>
+        <td>${l.ativo ? '<span class="tag tit">Ativo</span>' : l.revogado ? '<span class="small muted">Cancelado</span>' : '<span class="small muted">Vencido</span>'}</td>
+        <td class="r">${l.ativo ? `<button class="linkbtn" data-rev="${l.id}">Cancelar</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '';
+    $$('[data-rev]', box).forEach(b => armar(b, 'Confirmar', async () => { await API.revogarLink(A.staff.token, +b.dataset.rev); toast('Link cancelado.'); listaLinks(); }));
+  } catch (e) { box.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+/* página aberta pelo link com validade: www.cipaflow.com.br/votar/#doc=... */
+async function telaLink(tok) {
+  document.body.classList.remove('has-urna', 'is-painel');
+  const casca = inner => { $('#app').removeAttribute('aria-busy'); $('#app').innerHTML = mast(A.est && A.est.config, false) + `<main class="wrap narrow voter"><div class="card stack">${inner}</div>${rodapeLegal()}</main>`; bindMast(); };
+  casca(skLinhas(4));
+  try {
+    const i = await API.linkBaixar(tok, true);
+    casca(`<div><div class="eyebrow">Documento assinado digitalmente</div><h1 style="font-size:1.6rem;margin:.2em 0">${esc(i.titulo)}</h1><p class="muted">${esc(i.empresa || '')}</p></div>
+      <dl class="stats"><div><dt>Assinado por</dt><dd style="font-size:1rem">${esc(i.assinado_por)}</dd></div><div><dt>Assinado em</dt><dd style="font-size:1rem">${esc(fmtDT(i.assinado_em))}</dd></div><div><dt>Link válido até</dt><dd style="font-size:1rem">${esc(fmtDT(i.expira))}</dd></div></dl>
+      <div><button class="btn big" id="b-dl">Baixar PDF assinado</button></div>
+      <p class="small muted">Código de verificação do resultado: <span class="mono">${esc(i.codigo || '')}</span>. A assinatura digital pode ser conferida no Adobe Reader ou em validar.iti.gov.br. O download fica registrado.</p>`);
+    $('#b-dl').onclick = () => ocupado($('#b-dl'), async () => { const r = await API.linkBaixar(tok, false); await salvarArquivo(r.nome, b64blob(r.pdf)); }, 'Baixando…');
+  } catch (e) { casca(`<div><div class="eyebrow">Documento</div><h1 style="font-size:1.5rem;margin:.2em 0">Link indisponível</h1></div><div class="msg err">${esc(e.message)}</div>`); }
 }
 
 /* ---- Empresa ---- */
@@ -1445,7 +1653,7 @@ function abaEmpresa() {
 /* ---- Eleitores ---- */
 async function abaEleitores() {
   const travado = A.painel.status !== 'configuracao';
-  $('#tabbody').innerHTML = `<p class="muted">Carregando…</p>`;
+  $('#tabbody').innerHTML = `<div class="stack">${skCards(3)}${skTabela(6)}</div>`;
   let R; try { R = await API.resumoEleitores(A.staff.token); } catch (e) { $('#tabbody').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; return; }
   const aptas = A.painel.config.situacoes_aptas || [];
   $('#tabbody').innerHTML = `<div class="stack">
@@ -1577,12 +1785,13 @@ async function abaEquipe() {
     ${['aberta', 'aguardando_prorrogacao', 'aguardando_encerramento'].includes(A.painel.status) ? `<div class="msg info">Com a votação em andamento, a equipe fica travada: não é possível criar acessos nem mudar nome, login ou perfil. Para quem esqueceu a senha ou foi bloqueado, use <b>Desbloquear</b> ou <b>Senha provisória</b>, depois de conferir pessoalmente quem está pedindo. Essas ações saem na ata.</div>` : ''}
     <div id="m-prov"></div>
     <div class="msg ${nm >= nec ? 'ok' : 'attn'}">${nm} membros da comissão eleitoral cadastrados, sem limite de quantidade. Prorrogação e encerramento precisam de ${nec} confirmações (altere em Empresa → Regras).</div>
-    <div class="scroll"><table class="tbl"><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th></th></tr></thead><tbody>
-      ${L.map(x => `<tr><td>${esc(x.nome)}${x.bloqueado_ate ? `<div class="small" style="color:var(--err,#b42318)">Bloqueado até ${esc(new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(new Date(x.bloqueado_ate)))}</div>` : ''}${x.trocar_senha ? '<div class="small muted">Aguardando criar a senha pessoal</div>' : ''}</td><td class="mono">${esc(x.login)}</td><td>${esc(PERFIL[x.perfil])}</td><td class="r" style="white-space:nowrap">${x.id === A.painel.id || x.login === A.painel.login ? '<span class="small muted">você</span>' : `${x.bloqueado_ate ? `<button class="linkbtn" data-md="${x.id}">Desbloquear</button> &nbsp; ` : ''}<button class="linkbtn" data-mp="${x.id}">Senha provisória</button> &nbsp; <button class="linkbtn" data-me="${x.id}">Editar</button> &nbsp; <button class="linkbtn" data-mr="${x.id}">Remover</button>`}</td></tr>`).join('')}
+    <div class="scroll"><table class="tbl"><thead><tr><th>Nome</th><th>Matrícula</th><th>Login</th><th>Perfil</th><th></th></tr></thead><tbody>
+      ${L.map(x => `<tr><td>${esc(x.nome)}${x.bloqueado_ate ? `<div class="small" style="color:var(--err,#b42318)">Bloqueado até ${esc(new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(new Date(x.bloqueado_ate)))}</div>` : ''}${x.trocar_senha ? '<div class="small muted">Aguardando criar a senha pessoal</div>' : ''}</td><td class="mono">${esc(x.matricula || (x.perfil === 'admin' ? '—' : 'falta informar'))}</td><td class="mono">${esc(x.login)}</td><td>${esc(PERFIL[x.perfil])}${x.perfil === 'admin' && x.totp_ativo ? '<div class="small muted">Verificação em duas etapas ativa</div>' : ''}</td><td class="r" style="white-space:nowrap">${x.id === A.painel.id || x.login === A.painel.login ? '<span class="small muted">você</span>' : `${x.bloqueado_ate ? `<button class="linkbtn" data-md="${x.id}">Desbloquear</button> &nbsp; ` : ''}<button class="linkbtn" data-mp="${x.id}">Senha provisória</button> &nbsp; <button class="linkbtn" data-me="${x.id}">Editar</button> &nbsp; <button class="linkbtn" data-mr="${x.id}">Remover</button>`}</td></tr>`).join('')}
     </tbody></table></div>
     <form id="f-mem" class="card stack" novalidate><h3>${m ? 'Editar acesso' : 'Novo acesso'}</h3>
       <div class="grid2">
         <div class="field"><label for="m-nome">Nome</label><input class="input" id="m-nome" value="${esc(m ? m.nome : '')}"></div>
+        <div class="field"><label for="m-mat">Matrícula na empresa</label><input class="input" id="m-mat" autocomplete="off" value="${esc(m ? m.matricula || '' : '')}"><span class="hint">Sai na ata de apuração. Obrigatória para presidente e membros da comissão.</span></div>
         <div class="field"><label for="m-login">Login</label><input class="input" id="m-login" autocapitalize="none" value="${esc(m ? m.login : '')}"></div>
         <div class="field"><label for="m-perfil">Perfil</label><select class="input" id="m-perfil">${['mesario', 'presidente', 'admin'].map(p => `<option value="${p}" ${(m ? m.perfil : 'mesario') === p ? 'selected' : ''}>${PERFIL[p]}</option>`).join('')}</select></div>
         <div class="field"><label for="m-senha">${m ? 'Nova senha (deixe em branco para manter)' : 'Senha inicial'}</label><input class="input" id="m-senha" type="text" autocomplete="off"><span class="hint">Mínimo de 10 caracteres. Peça para a pessoa trocar no primeiro acesso.</span></div>
@@ -1601,7 +1810,7 @@ async function abaEquipe() {
   const mc = $('#m-cancel'); if (mc) mc.onclick = () => { A.editMembro = null; abaEquipe(); };
   $('#f-mem').addEventListener('submit', async ev => {
     ev.preventDefault();
-    try { await API.salvarMembro(A.staff.token, { id: m ? m.id : null, nome: $('#m-nome').value, login: $('#m-login').value, perfil: $('#m-perfil').value, senha: $('#m-senha').value }); toast('Acesso salvo.'); A.editMembro = null; await atualizarPainel(); abaEquipe(); } catch (e) { toast(e.message); }
+    try { await API.salvarMembro(A.staff.token, { id: m ? m.id : null, nome: $('#m-nome').value, matricula: $('#m-mat').value, login: $('#m-login').value, perfil: $('#m-perfil').value, senha: $('#m-senha').value }); toast('Acesso salvo.'); A.editMembro = null; await atualizarPainel(); abaEquipe(); } catch (e) { toast(e.message); }
   });
 }
 
@@ -1627,7 +1836,7 @@ function abaDocumentos() {
     <div class="card stack" id="aceites-card"><div class="row" style="justify-content:space-between;align-items:center;gap:12px">
       <div><h3>Aceites dos Termos de Uso e da Política de Privacidade</h3><p class="small muted">Quem marcou o aceite ao entrar: data e hora, endereço de internet (IP) e navegador. Só o administrador vê esta lista, e o "Reiniciar" não a apaga.</p></div>
       <button class="btn ghost" id="b-aceites-xlsx" disabled>Baixar planilha</button></div>
-      <div id="aceites-lista"><p class="muted small">Carregando…</p></div></div>
+      <div id="aceites-lista">${skLinhas(5)}</div></div>
   </div>`;
   carregarAceites();
 }
@@ -1696,6 +1905,7 @@ function abaConta() {
       <div class="field"><label for="p-atual">Senha atual</label><input class="input" id="p-atual" type="password" autocomplete="current-password"></div>
       <div class="field"><label for="p-nova">Nova senha</label><input class="input" id="p-nova" type="password" autocomplete="new-password"><span class="hint">Mínimo de 10 caracteres.</span></div>
       <div><button class="btn">Trocar senha</button></div></form>
+    ${P.perfil === 'admin' ? `<div id="conta-seg">${skLinhas(3)}</div>` : ''}
     ${P.perfil === 'admin' && P.status !== 'encerrada' ? `<div class="card stack" id="card-forcado" style="border-color:var(--attn-line)"><h3>Encerramento administrativo</h3>
       <p class="small">Encerra a eleição <b>imediatamente</b>, em qualquer etapa, sem verificar o prazo nem a participação mínima da NR-5. A apuração é liberada na hora com os votos já registrados.</p>
       <div class="msg attn small">Use só em situação excepcional (falha, paralisação, decisão da comissão). A justificativa, o seu nome e o horário saem destacados na ata e no registro.</div>
@@ -1703,7 +1913,7 @@ function abaConta() {
       <div class="field"><label for="f-conf">Digite ENCERRAR para confirmar</label><input class="input" id="f-conf" autocomplete="off"></div>
       <div><button class="btn danger" id="b-forcar">Encerrar eleição agora</button></div></div>` : ''}
     ${P.perfil === 'admin' ? `<div class="card stack"><h3>Reiniciar para um novo cliente</h3>
-      <p class="small muted">Apaga <b>tudo</b>: dados da empresa (razão social, CNPJ, logo, cor e regras), presidente e membros da comissão eleitoral, eleitores, candidatos, votos e o registro. Só os acessos de administrador continuam. Não há como desfazer: baixe e guarde as duas atas antes.</p>
+      <p class="small muted">Apaga <b>tudo</b>: dados da empresa (razão social, CNPJ, logo, cor e regras), presidente e membros da comissão eleitoral, eleitores, candidatos, votos e o registro. Só os acessos de administrador continuam. Não há como desfazer: baixe e guarde antes a ata de apuração e o relatório de integridade.</p>
       ${podeReiniciar ? `<div class="field"><label for="r-conf">Digite REINICIAR para confirmar</label><input class="input" id="r-conf" autocomplete="off"></div><div><button class="btn danger" id="b-reiniciar">Apagar tudo e começar do zero</button></div>`
         : `<div class="msg info">Disponível antes da abertura ou depois do encerramento.</div>`}</div>` : ''}
   </div>`;
@@ -1714,208 +1924,76 @@ function abaConta() {
     catch (e) { toast(e.message); bfz.disabled = false; }
   };
   const br = $('#b-reiniciar'); if (br) br.onclick = async () => { try { await API.reiniciar(A.staff.token, $('#r-conf').value.trim()); toast('Tudo apagado. Comece cadastrando a nova empresa.'); A.codigos = null; A.cands = null; A.tab = 'empresa'; await atualizarPainel(true); aplicarMarca(A.painel.config); } catch (e) { toast(e.message); } };
+  if (P.perfil === 'admin') contaSeguranca();
+}
+/* verificação em duas etapas, certificado digital e assinaturas (administrador) */
+async function contaSeguranca(ativando) {
+  const box = $('#conta-seg'); if (!box) return;
+  try { A.seg = await API.seguranca(A.staff.token); } catch (e) { box.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; return; }
+  const S2 = A.seg;
+  let h = `<div class="card stack"><h3>Verificação em duas etapas</h3>`;
+  if (S2.totp_ativo) {
+    h += `<div class="msg ok">Ativa. Para entrar no painel você usa a senha e o código de 6 dígitos do aplicativo autenticador.</div>
+      <details><summary class="small">Desativar</summary><form id="f-2fa-off" class="stack" novalidate style="margin-top:10px">
+        <div class="grid2"><div class="field"><label for="o-senha">Sua senha</label><input class="input" id="o-senha" type="password" autocomplete="current-password"></div>
+        <div class="field"><label for="o-cod">Código do aplicativo</label><input class="input mono" id="o-cod" inputmode="numeric" autocomplete="one-time-code" maxlength="7"></div></div>
+        <div><button class="btn danger">Desativar a verificação em duas etapas</button></div>
+        ${S2.responsavel_tecnico ? '<p class="small muted">Sem a verificação em duas etapas, a assinatura com o certificado digital fica bloqueada.</p>' : ''}</form></details>`;
+  } else if (ativando) {
+    h += `<p class="small">1. Instale no celular um aplicativo autenticador (Google Authenticator, Microsoft Authenticator ou similar).</p>
+      <p class="small">2. No aplicativo, toque em adicionar e leia este QR code:</p>
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div id="qr-2fa" style="background:#fff;padding:10px;border-radius:10px;border:1px solid var(--line);line-height:0"></div>
+        <div class="small muted" style="max-width:300px">Sem câmera? Escolha "inserir chave" e digite:<div class="mono" style="font-size:.95rem;word-break:break-all;color:var(--ink);margin-top:6px">${esc(ativando.segredo.match(/.{4}/g).join(' '))}</div></div></div>
+      <form id="f-2fa-ok" class="stack" novalidate><p class="small">3. Digite o código de 6 dígitos que aparece no aplicativo:</p>
+        <div class="row"><input class="input mono" id="a-cod" inputmode="numeric" autocomplete="one-time-code" maxlength="7" style="max-width:10rem;font-size:1.25rem;letter-spacing:.25em"><button class="btn">Confirmar e ativar</button><button type="button" class="btn ghost" id="a-cancel">Cancelar</button></div></form>
+      <p class="small muted">Esta chave aparece só agora. Não tire foto nem guarde em lugar comum: quem tiver a chave gera os códigos.</p>`;
+  } else {
+    h += `<p class="small muted">Protege o acesso de administrador: além da senha, o login pede um código de 6 dígitos que muda a cada 30 segundos no seu celular. ${S2.responsavel_tecnico ? '<b>Obrigatória para assinar documentos com o certificado digital.</b>' : 'Recomendada para todos os administradores.'}</p>
+      <div><button class="btn" id="b-2fa">Ativar</button></div>`;
+  }
+  h += `</div>`;
+  if (S2.responsavel_tecnico) h += `<div class="card stack"><h3>Certificado digital (e-CPF)</h3>
+      <p class="small muted">O certificado A1 fica guardado nos segredos da função "assinar-documento" do Supabase, fora do site e do banco de dados. Use o teste para conferir o titular e a validade.</p>
+      <div><button class="btn ghost" id="b-cert" ${S2.totp_ativo ? '' : 'disabled'}>Testar certificado</button></div><div id="cert-res"></div></div>
+    <div class="card stack"><h3>Assinaturas digitais</h3><div id="ass-lista">${skLinhas(3)}</div></div>`;
+  box.innerHTML = h;
+  const qr = $('#qr-2fa');
+  if (qr) { try { await loadScript(LIB.qr); const q = qrcode(0, 'M'); q.addData(ativando.uri); q.make(); qr.innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: false }); } catch (e) { qr.textContent = 'QR code indisponível: use a chave ao lado.'; } }
+  const b2 = $('#b-2fa'); if (b2) b2.onclick = async () => { try { contaSeguranca(await API.doisFatoresIniciar(A.staff.token)); } catch (e) { toast(e.message); } };
+  const ac = $('#a-cancel'); if (ac) ac.onclick = () => contaSeguranca();
+  const fo = $('#f-2fa-ok'); if (fo) fo.addEventListener('submit', async ev => { ev.preventDefault();
+    try { await API.doisFatoresConfirmar(A.staff.token, $('#a-cod').value); toast('Verificação em duas etapas ativada.'); A.seg = null; contaSeguranca(); } catch (e) { toast(e.message); } });
+  const ff = $('#f-2fa-off'); if (ff) ff.addEventListener('submit', async ev => { ev.preventDefault();
+    try { await API.doisFatoresDesativar(A.staff.token, $('#o-senha').value, $('#o-cod').value); toast('Verificação em duas etapas desativada.'); A.seg = null; contaSeguranca(); } catch (e) { toast(e.message); } });
+  const bc = $('#b-cert'); if (bc) bc.onclick = async () => { bc.disabled = true; const out = $('#cert-res'); out.innerHTML = skLinhas(2);
+    try { const c = await API.assinar(A.staff.token, 'teste');
+      out.innerHTML = `${c.aviso ? `<div class="msg attn">${esc(c.aviso)}</div>` : '<div class="msg ok">Certificado lido com sucesso.</div>'}
+        <dl class="stats"><div><dt>Titular</dt><dd style="font-size:1rem">${esc(c.titular)}</dd></div><div><dt>Válido até</dt><dd style="font-size:1rem">${esc(fmtDT(c.valido_ate))}</dd></div><div><dt>Autoridade certificadora</dt><dd style="font-size:1rem">${esc(c.emissor)}</dd></div></dl>`;
+    } catch (e) { out.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; } bc.disabled = false; };
+  const al = $('#ass-lista'); if (al) {
+    try { const r = await API.assinaturas(A.staff.token); const it = r.itens || [];
+      al.innerHTML = it.length ? `<div class="scroll"><table class="tbl"><thead><tr><th>Data e hora</th><th>Documento</th><th>Empresa</th><th>Verificação</th><th>Impressão digital do PDF (SHA-256)</th></tr></thead><tbody>
+        ${it.map(a => `<tr><td class="num">${esc(fmtDT(a.quando))}</td><td>${a.documento === 'ata' ? 'Ata de apuração' : 'Relatório de integridade'}</td><td>${esc(a.empresa || '—')}</td><td class="mono">${esc(a.codigo || '')}</td><td class="mono small" title="${esc(a.hash_pdf || '')}">${esc((a.hash_pdf || '').slice(0, 16))}…</td></tr>`).join('')}
+        </tbody></table></div><p class="small muted">A impressão digital identifica cada arquivo assinado: se alguém apresentar uma cópia, dá para conferir se é exatamente o arquivo emitido.</p>` : '<p class="small muted">Nenhum documento assinado ainda.</p>';
+    } catch (e) { al.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+  }
 }
 
 /* =====================================================================
    DOCUMENTOS PDF
    ===================================================================== */
-const hex2rgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); const n = parseInt(m ? m[1] : '0f6b4f', 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
-const imgFmt = d => /^data:image\/png/i.test(d) ? 'PNG' : 'JPEG';
-const slug = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
-async function pdfKit(cfg) {
-  await loadScript(LIB.jspdf);
-  const d = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
-  const K = { d, W: 210, H: 297, M: 18, y: 18, cor: hex2rgb(cfg.cor) };
-  K.CW = K.W - 2 * K.M;
-  K.T = (txt, x, yy, o = {}) => { d.setFont(o.f || 'helvetica', o.b ? 'bold' : 'normal'); d.setFontSize(o.s || 10); d.setTextColor(...(o.c || [20, 32, 27])); d.text(txt, x, yy, o.opt || {}); };
-  K.quebra = h => { if (K.y + h > K.H - 22) { d.addPage(); K.y = K.M; return true; } return false; };
-  K.cabecalho = (titulo, subtitulo) => {
-    let lx = K.M;
-    if (cfg.logo) { try { const p = d.getImageProperties(cfg.logo); const h = 16, w = Math.min(40, h * p.width / p.height); d.addImage(cfg.logo, imgFmt(cfg.logo), K.M, K.y, w, h); lx = K.M + w + 5; } catch (e) { /* logo inválido */ } }
-    K.T(cfg.empresa || '', lx, K.y + 5.5, { b: 1, s: 13 });
-    const sub = [cfg.cnpj && 'CNPJ ' + cfg.cnpj, cfg.endereco].filter(Boolean).join(' · ');
-    if (sub) K.T(d.splitTextToSize(sub, K.W - K.M - lx), lx, K.y + 11, { s: 8.5, c: [86, 103, 95] });
-    K.y += 20; d.setDrawColor(...K.cor); d.setLineWidth(0.8); d.line(K.M, K.y, K.W - K.M, K.y); K.y += 9;
-    K.T(titulo, K.M, K.y, { b: 1, s: 15 }); K.y += 6;
-    if (subtitulo) { K.T(subtitulo, K.M, K.y, { s: 10, c: [86, 103, 95] }); K.y += 4; }
-    K.y += 5;
-  };
-  K.secao = t => { K.quebra(16); K.T(t.toUpperCase(), K.M, K.y, { b: 1, s: 9.5, c: K.cor }); K.y += 2.5; d.setDrawColor(210, 220, 214); d.setLineWidth(0.2); d.line(K.M, K.y, K.W - K.M, K.y); K.y += 5.5; };
-  K.paragrafo = (t, o = {}) => { d.setFont('helvetica', 'normal'); d.setFontSize(o.s || 10); const ls = d.splitTextToSize(t, K.CW); ls.forEach(l => { K.quebra(6); K.T(l, K.M, K.y, o); K.y += (o.s || 10) * 0.45; }); K.y += 2; };
-  K.tabela = (cols, rows) => {
-    const pad = 2, lh = 3.75;
-    const tint = K.cor.map(v => Math.round(v + (255 - v) * 0.86));
-    const head = () => { d.setFillColor(...tint); d.rect(K.M, K.y, K.CW, 7, 'F'); let x = K.M; cols.forEach(c => { K.T(c.t, c.a === 'r' ? x + c.w - pad : x + pad, K.y + 4.7, { b: 1, s: 8, opt: c.a === 'r' ? { align: 'right' } : {} }); x += c.w; }); K.y += 7; };
-    K.quebra(16); head();
-    rows.forEach((r, i) => {
-      d.setFont('helvetica', r.b ? 'bold' : 'normal'); d.setFontSize(9);
-      const cells = r.c.map((v, j) => d.splitTextToSize(String(v ?? ''), cols[j].w - 2 * pad));
-      const h = Math.max(...cells.map(l => l.length)) * lh + 3.2;
-      if (K.y + h > K.H - 22) { d.addPage(); K.y = K.M; head(); }
-      if (r.fill) { d.setFillColor(...r.fill); d.rect(K.M, K.y, K.CW, h, 'F'); } else if (i % 2) { d.setFillColor(245, 248, 246); d.rect(K.M, K.y, K.CW, h, 'F'); }
-      let x = K.M; cells.forEach((l, j) => { K.T(l, cols[j].a === 'r' ? x + cols[j].w - pad : x + pad, K.y + 4.4, { s: 9, b: r.b, opt: cols[j].a === 'r' ? { align: 'right' } : {} }); x += cols[j].w; });
-      K.y += h;
-    });
-    d.setDrawColor(210, 220, 214); d.setLineWidth(0.2); d.line(K.M, K.y, K.W - K.M, K.y); K.y += 6;
-  };
-  K.rodape = txt => { const n = d.getNumberOfPages(); for (let i = 1; i <= n; i++) { d.setPage(i); K.T(txt, K.M, K.H - 10, { s: 7.5, c: [120, 132, 126] }); K.T(`Página ${i} de ${n}`, K.W - K.M, K.H - 10, { s: 7.5, c: [120, 132, 126], opt: { align: 'right' } }); } };
-  return K;
-}
-/* SHA-256 próprio: mesmo resultado em qualquer navegador, com ou sem HTTPS */
-function sha256hex(str) {
-  const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
-  const bytes = Array.from(new TextEncoder().encode(str)); const bitLen = bytes.length * 8;
-  bytes.push(0x80); while (bytes.length % 64 !== 56) bytes.push(0);
-  for (let i = 7; i >= 0; i--) bytes.push(i >= 4 ? 0 : (bitLen >>> (i * 8)) & 255);
-  let H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
-  const r = (x, n) => (x >>> n) | (x << (32 - n)); const W = new Array(64);
-  for (let o = 0; o < bytes.length; o += 64) {
-    for (let i = 0; i < 16; i++) W[i] = (bytes[o + 4 * i] << 24) | (bytes[o + 4 * i + 1] << 16) | (bytes[o + 4 * i + 2] << 8) | bytes[o + 4 * i + 3];
-    for (let i = 16; i < 64; i++) { const s0 = r(W[i - 15], 7) ^ r(W[i - 15], 18) ^ (W[i - 15] >>> 3), s1 = r(W[i - 2], 17) ^ r(W[i - 2], 19) ^ (W[i - 2] >>> 10); W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0; }
-    let [a, b, c, d, e, f, g, h] = H;
-    for (let i = 0; i < 64; i++) {
-      const t1 = (h + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
-      const t2 = ((r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
-      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
-    }
-    H = H.map((v, i) => (v + [a, b, c, d, e, f, g, h][i]) | 0);
-  }
-  return H.map(v => (v >>> 0).toString(16).padStart(8, '0')).join('');
-}
-async function codigoVerificacao(R) {
-  return sha256hex(baseVerificacao(R)).slice(0, 16).toUpperCase().match(/.{4}/g).join('-');
-}
-function linhaDoTempo(R) {
-  const cfg = R.config; const Pp = R.preparacao || {}; const prep = [];
-  const add = (x, acao, det) => { if (x && x.em) prep.push({ quando: x.em, ator: x.por || '—', acao, detalhe: det, ordem: prep.length }); };
-  add(Pp.empresa, 'Empresa cadastrada no sistema', [cfg.empresa, cfg.cnpj && 'CNPJ ' + cfg.cnpj].filter(Boolean).join(' · '));
-  add(Pp.eleitores, 'Base de eleitores importada (planilha)', `${Pp.total_eleitores} empregados cadastrados, ${Pp.aptos} aptos a votar.`);
-  add(Pp.candidatos, 'Cadastro de candidatos concluído', `${Pp.total_candidatos} candidato${Pp.total_candidatos === 1 ? '' : 's'} inscrito${Pp.total_candidatos === 1 ? '' : 's'}.`);
-  add(Pp.equipe, 'Presidente e membros da comissão eleitoral cadastrados', `Presidente: ${Pp.presidente || '—'}. ${Pp.mesarios} ${Pp.mesarios === 1 ? 'membro' : 'membros'} da comissão eleitoral.`);
-  add(Pp.codigos, 'Códigos de acesso gerados', `Cédulas individuais para os ${Pp.aptos} eleitores aptos.`);
-  if (Pp.apta_em) prep.push({ quando: Pp.apta_em, ator: 'Sistema', acao: 'Eleição habilitada para abertura', detalhe: 'Todos os requisitos de preparação cumpridos.', ordem: 50 });
-  return prep.concat(R.eventos.map(e => ({ ...e, ordem: 100 }))).sort((a, b) => Date.parse(a.quando) - Date.parse(b.quando) || a.ordem - b.ordem);
-}
-function baseVerificacao(R) {
-  return JSON.stringify([R.aptos, R.votantes, R.brancos, R.nulos, R.encerrada_em, R.candidatos.map(c => [c.nome, c.votos, c.condicao])]);
-}
+/* Ata e relatório vêm de /assets/js/documentos.js: o mesmo gerador roda aqui (cópia sem assinatura)
+   e na função "assinar-documento" do Supabase (cópia assinada com o e-CPF do responsável técnico). */
+async function geradorDocs() { await loadScript(LIB.jspdf); await loadScript(LIB.docs); return window.CipaDocs; }
+async function pdfKit(cfg) { const D = await geradorDocs(); return D.kit(window.jspdf.jsPDF, cfg); }
+const slug = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
 async function baixarAta(R) {
-  const cfg = R.config; const K = await pdfKit(cfg); const d = K.d;
-  const cod = await codigoVerificacao(R);
-  K.cabecalho('ATA DE APURAÇÃO DA ELEIÇÃO DA CIPA', [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao].filter(Boolean).join(' · '));
-  K.secao('1. Andamento da votação');
-  K.tabela([{ t: 'Data e hora', w: 32 }, { t: 'Evento', w: 44 }, { t: 'Responsável', w: 36 }, { t: 'Detalhe', w: K.CW - 112 }],
-    linhaDoTempo(R).map(e => ({ c: [fmtDT(e.quando), e.acao, e.ator, e.detalhe] })));
-  K.secao('2. Participação');
-  const meta = R.fase === 1 ? '50% dos eleitores aptos' : '1/3 dos eleitores aptos (prorrogação)';
-  K.tabela([{ t: 'Item', w: 90 }, { t: 'Valor', w: K.CW - 90, a: 'r' }], [
-    { c: ['Eleitores aptos', R.aptos] }, { c: ['Votantes', R.votantes] }, { c: ['Participação', fmtPct(pctN(R.votantes, R.aptos))] },
-    { c: ['Períodos de votação', R.fase === 1 ? '1 (sem prorrogação)' : `${R.fase} (${R.fase - 1} prorrogação${R.fase > 2 ? 'ões' : ''})`] },
-    { c: ['Mínimo exigido no último período', R.encerramento_tipo === 'administrativo' ? 'Não verificado (encerramento administrativo)' : meta] }]);
-  K.secao('3. Apuração');
-  const tot = R.total_votos || 0;
-  const vagas = `${cfg.vagas_titulares} titular${cfg.vagas_titulares > 1 ? 'es' : ''} e ${cfg.vagas_suplentes} suplente${cfg.vagas_suplentes !== 1 ? 's' : ''}`;
-  K.tabela([{ t: '#', w: 9, a: 'r' }, { t: 'Candidato', w: 62 }, { t: 'Setor', w: 30 }, { t: 'Admissão', w: 22 }, { t: 'Votos', w: 16, a: 'r' }, { t: '%', w: 15, a: 'r' }, { t: 'Resultado', w: K.CW - 154 }],
-    R.candidatos.map(c => ({ c: [c.posicao, `${c.apelido} (${c.nome})`, c.setor, fmtD(c.admissao), c.votos, fmtPct(pctN(c.votos, tot)), c.condicao], b: !!c.condicao }))
-      .concat([{ c: ['', 'Votos em branco', '', '', R.brancos, fmtPct(pctN(R.brancos, tot)), ''] }, { c: ['', 'Votos nulos', '', '', R.nulos, fmtPct(pctN(R.nulos, tot)), ''] },
-        { c: ['', 'Total de votos', '', '', tot, '100,0%', ''], b: true }]));
-  K.paragrafo(`Vagas: ${vagas}. Critério de desempate: maior tempo de serviço no estabelecimento (data de admissão mais antiga).`, { s: 8.5, c: [86, 103, 95] });
-  K.secao('4. Representantes eleitos dos empregados');
-  const tit = R.candidatos.filter(c => c.condicao === 'Titular'), sup = R.candidatos.filter(c => c.condicao === 'Suplente');
-  K.tabela([{ t: 'Condição', w: 26 }, { t: 'Nome', w: 76 }, { t: 'Apelido', w: 40 }, { t: 'Votos', w: K.CW - 142, a: 'r' }],
-    tit.map(c => ({ c: ['Titular', c.nome, c.apelido, c.votos] })).concat(sup.map(c => ({ c: ['Suplente', c.nome, c.apelido, c.votos] }))));
-  K.secao('5. Encerramento');
-  const adm = R.encerramento_tipo === 'administrativo';
-  K.paragrafo(`A votação foi realizada por meio eletrônico, com identificação individual do eleitor por matrícula, data de nascimento e código de acesso de uso único, garantindo um voto por eleitor e o sigilo do voto. ` + (adm
-    ? `A votação foi ENCERRADA ADMINISTRATIVAMENTE em ${fmtDT(R.encerrada_em)} por ${R.encerrada_por}, administrador do sistema, sem a verificação automática de prazo e de participação mínima. A apuração foi feita pelo sistema no momento do encerramento.`
-    : `A votação foi encerrada em ${fmtDT(R.encerrada_em)}, a pedido de ${R.encerrada_por}, Presidente da Comissão Eleitoral, com a confirmação dos membros da comissão eleitoral ${(R.confirmacoes_encerramento || []).map(c => c.nome).join(', ') || '—'}. A apuração foi feita automaticamente pelo sistema no momento do encerramento.`));
-  if (adm) K.paragrafo(`Justificativa do encerramento administrativo: ${R.justificativa}`, { b: 1, s: 9.5 });
-  K.paragrafo(`Código de verificação deste resultado: ${cod}`, { b: 1, s: 9.5 });
-  K.paragrafo(`Uma via de verificação desta ata (Ata de Verificação do Resultado) encontra-se sob a guarda do administrador do sistema, contendo o resultado integral, o registro completo das atividades da eleição e a impressão digital eletrônica (SHA-256) do resultado, para efeito de verificação junto à fiscalização do trabalho ou em processo judicial. O código de verificação acima corresponde aos 16 primeiros caracteres dessa impressão digital e pode ser usado para comparação entre os dois documentos.`, { s: 8.5, c: [86, 103, 95] });
-  K.secao('Assinaturas');
-  const ass = R.equipe.map(m => [m.nome, m.perfil === 'presidente' ? 'Presidente da Comissão Eleitoral' : 'Comissão Eleitoral'])
-    .concat([['', 'Representante do empregador'], ['', 'Representante dos empregados']]);
-  const colW = (K.CW - 10) / 2;
-  for (let i = 0; i < ass.length; i += 2) {
-    K.quebra(22); K.y += 12;
-    [0, 1].forEach(j => { const a = ass[i + j]; if (!a) return; const x = K.M + j * (colW + 10); d.setDrawColor(120); d.setLineWidth(0.3); d.line(x, K.y, x + colW, K.y); K.T(a[0] || ' ', x, K.y + 4.5, { b: 1, s: 9 }); K.T(a[1], x, K.y + 8.5, { s: 8, c: [86, 103, 95] }); });
-    K.y += 10;
-  }
-  K.rodape(`Urna CIPA · ${cfg.empresa} · verificação ${cod}`);
-  await salvarArquivo(`ata-eleicao-cipa-${slug(cfg.empresa)}.pdf`, d.output('blob'));
+  const D = await geradorDocs(); const G = D.ata(window.jspdf.jsPDF, R);
+  await salvarArquivo(G.nome, G.d.output('blob'));
 }
-async function baixarAtaAdmin(R, L, emissor) {
-  const cfg = R.config; const K = await pdfKit(cfg); const d = K.d;
-  const hash = sha256hex(baseVerificacao(R)).toUpperCase();
-  const cod = hash.slice(0, 16).match(/.{4}/g).join('-');
-  const logAsc = (L || []).slice().reverse();
-  const hashLog = sha256hex(JSON.stringify(logAsc.map(l => [l.quando, l.ator, l.acao, l.detalhe]))).toUpperCase();
-  const agora = new Date().toISOString(); const mut = [86, 103, 95];
-  const cont = a => logAsc.filter(l => l.acao === a).length;
-  K.cabecalho('ATA DE VERIFICAÇÃO DO RESULTADO', 'Via de guarda do administrador do sistema · ' + [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao].filter(Boolean).join(' · '));
-  K.paragrafo(`Este documento é a via de verificação da Ata de Apuração emitida pela Comissão Eleitoral. Ele é gerado a partir dos mesmos dados gravados no banco de dados do sistema e serve para comprovar, junto à fiscalização do trabalho ou em processo judicial, que a ata apresentada pela Comissão Eleitoral corresponde ao resultado oficialmente registrado. Para a comparação, confira o código de verificação, os números da apuração e a linha do tempo nos dois documentos.`, { s: 9.5 });
-  K.secao('1. Identificação da eleição');
-  K.tabela([{ t: 'Item', w: 62 }, { t: 'Informação', w: K.CW - 62 }], [
-    { c: ['Empresa', [cfg.empresa, cfg.cnpj && 'CNPJ ' + cfg.cnpj].filter(Boolean).join(' · ')] },
-    { c: ['Estabelecimento', cfg.endereco || '—'] },
-    { c: ['Eleição', [cfg.titulo, cfg.gestao && 'Gestão ' + cfg.gestao].filter(Boolean).join(' · ')] },
-    { c: ['Endereço da votação', cfg.url_site || '—'] },
-    { c: ['Abertura da votação', fmtDT(R.aberta_em)] },
-    { c: ['Encerramento', `${fmtDT(R.encerrada_em)} · ${R.encerramento_tipo === 'administrativo' ? 'encerramento administrativo por ' + R.encerrada_por : 'a pedido de ' + R.encerrada_por + ', confirmado por ' + ((R.confirmacoes_encerramento || []).map(c => c.nome).join(', ') || '—')}`] },
-    { c: ['Vagas', `${cfg.vagas_titulares} titulares e ${cfg.vagas_suplentes} suplentes`] }]);
-  K.secao('2. Elementos de autenticação');
-  K.tabela([{ t: 'Elemento', w: 62 }, { t: 'Valor', w: K.CW - 62 }], [
-    { c: ['Código de verificação', cod], b: true },
-    { c: ['Impressão digital do resultado (SHA-256)', hash.match(/.{16}/g).join(' ')] },
-    { c: ['Impressão digital do registro de atividades (SHA-256)', hashLog.match(/.{16}/g).join(' ')] },
-    { c: ['Emitida em', fmtDT(agora)] },
-    { c: ['Emitida por', emissor + ' (administrador do sistema)'] }]);
-  K.paragrafo(`O código de verificação impresso na Ata de Apuração da Comissão Eleitoral corresponde aos 16 primeiros caracteres da impressão digital do resultado. Qualquer alteração nos números da apuração, nos nomes dos candidatos ou na data de encerramento produz uma impressão digital diferente.`, { s: 8.5, c: mut });
-  K.secao('3. Resultado integral da apuração');
-  const tot = R.total_votos || 0;
-  K.tabela([{ t: '#', w: 9, a: 'r' }, { t: 'Candidato', w: 70 }, { t: 'Setor', w: 32 }, { t: 'Admissão', w: 22 }, { t: 'Votos', w: 16, a: 'r' }, { t: 'Resultado', w: K.CW - 149 }],
-    R.candidatos.map(c => ({ c: [c.posicao, `${c.apelido} (${c.nome})`, c.setor, fmtD(c.admissao), c.votos, c.condicao], b: !!c.condicao }))
-      .concat([{ c: ['', 'Votos em branco', '', '', R.brancos, ''] }, { c: ['', 'Votos nulos', '', '', R.nulos, ''] }, { c: ['', 'Total de votos', '', '', tot, ''], b: true }]));
-  K.secao('4. Conferência de consistência');
-  const ok = tot === R.votantes;
-  K.tabela([{ t: 'Verificação', w: 110 }, { t: 'Valor', w: K.CW - 110, a: 'r' }], [
-    { c: ['Eleitores aptos', R.aptos] },
-    { c: ['Eleitores marcados como "já votou"', R.votantes] },
-    { c: ['Votos registrados na urna eletrônica', tot] },
-    { c: ['Diferença entre votantes e votos', ok ? '0 (consistente)' : String(tot - R.votantes)], b: true },
-    { c: ['Participação', fmtPct(pctN(R.votantes, R.aptos))] },
-    { c: ['Votos por período', (R.votos_por_fase || []).map(f => `${faseNome(f.fase)}: ${f.votos}`).join(' · ') || '—'] },
-    { c: ['Códigos de acesso reemitidos pela comissão', cont('Código reemitido')] },
-    { c: ['Consultas à lista de quem não votou', cont('Consultou lista de quem não votou')] },
-    { c: ['Acessos da equipe ao painel', cont('Acesso ao painel')] }]);
-  K.paragrafo('Cada voto é gravado no mesmo instante em que o eleitor é marcado como "já votou", numa única operação do banco de dados. Por isso o número de votantes e o número de votos registrados devem ser idênticos.', { s: 8.5, c: mut });
-  K.secao('5. Linha do tempo da eleição');
-  K.tabela([{ t: 'Data e hora', w: 32 }, { t: 'Evento', w: 44 }, { t: 'Responsável', w: 36 }, { t: 'Detalhe', w: K.CW - 112 }],
-    linhaDoTempo(R).map(e => ({ c: [fmtDT(e.quando), e.acao, e.ator, e.detalhe] })));
-  K.secao('6. Equipe da eleição');
-  K.tabela([{ t: 'Nome', w: 90 }, { t: 'Função', w: K.CW - 90 }],
-    R.equipe.map(m => ({ c: [m.nome, m.perfil === 'presidente' ? 'Presidente da Comissão Eleitoral' : 'Comissão Eleitoral'] })));
-  K.secao('7. Registro completo de atividades');
-  K.paragrafo(`${logAsc.length} registros, em ordem cronológica. O registro não contém nenhuma informação sobre em quem cada eleitor votou.`, { s: 8.5, c: mut });
-  K.tabela([{ t: 'Data e hora', w: 32 }, { t: 'Quem', w: 40 }, { t: 'Ação', w: 46 }, { t: 'Detalhe', w: K.CW - 118 }],
-    logAsc.map(l => ({ c: [fmtDT(l.quando), l.ator, l.acao, l.detalhe] })));
-  K.secao('8. Garantias técnicas do sistema');
-  [
-    'Voto secreto: a tabela de votos não tem nenhum vínculo com o eleitor nem registra horário; o sistema guarda apenas que o eleitor votou.',
-    'Um voto por eleitor: o eleitor é identificado por matrícula, data de nascimento e código de uso único; após o voto o código deixa de valer.',
-    'Códigos de acesso e senhas da equipe são guardados apenas em forma embaralhada (hash), sem possibilidade de leitura.',
-    'Contagem oculta: nenhum perfil, inclusive o administrador, vê votos por candidato antes do encerramento.',
-    'Regras automáticas: prazo, participação mínima (NR-5), prorrogação e encerramento dependem de confirmações registradas da comissão eleitoral.',
-    'Datas e horários são os do servidor do banco de dados, no fuso de Brasília, e não do aparelho de quem acessa.'
-  ].forEach(t => K.paragrafo('• ' + t, { s: 9 }));
-  K.secao('9. Declaração');
-  K.paragrafo(`Declaro que este documento foi gerado pelo sistema de votação eletrônica a partir dos dados registrados na eleição acima identificada, sem qualquer alteração manual, e que os dados permanecem sob minha guarda para efeito de verificação.`, { s: 9.5 });
-  K.quebra(30); K.y += 16;
-  d.setDrawColor(120); d.setLineWidth(0.3); d.line(K.M, K.y, K.M + 90, K.y);
-  K.T(emissor, K.M, K.y + 4.5, { b: 1, s: 9 }); K.T('Administrador do sistema · responsável pela guarda', K.M, K.y + 8.5, { s: 8, c: mut });
-  K.y += 14;
-  K.rodape(`Ata de verificação · via do administrador · ${cfg.empresa} · verificação ${cod}`);
-  await salvarArquivo(`ata-verificacao-admin-${slug(cfg.empresa)}.pdf`, d.output('blob'));
+async function baixarRelatorio(R, L) {
+  const D = await geradorDocs(); const G = D.relatorio(window.jspdf.jsPDF, R, L);
+  await salvarArquivo(G.nome, G.d.output('blob'));
 }
 async function baixarCedulas(lista, cfg) {
   const K = await pdfKit(cfg); const d = K.d; const mx = 10, my = 10, cw = (210 - 2 * mx) / 2, ch = (297 - 2 * my) / 4; const mut = [86, 103, 95];
@@ -1959,6 +2037,18 @@ async function baixarListaEntrega(lista, cfg) {
 /* =====================================================================
    PAINEL DE TESTES (somente demonstração)
    ===================================================================== */
+/* esqueletos de carregamento */
+function skLinhas(n = 4) { return `<div aria-busy="true"><span class="sr-only">Carregando…</span>${Array.from({ length: n }, (_, i) => `<span class="sk sk-line" style="width:${[92, 78, 85, 64, 88, 70][i % 6]}%"></span>`).join('')}</div>`; }
+function skCards(n = 3) { return `<div class="sk-grid" aria-busy="true"><span class="sr-only">Carregando…</span>${Array.from({ length: n }, () => `<div class="card"><span class="sk" style="width:45%;height:13px"></span><span class="sk" style="width:35%;height:30px;margin-top:12px"></span></div>`).join('')}</div>`; }
+function skTabela(n = 6) { return `<div class="card" aria-busy="true"><span class="sr-only">Carregando…</span><span class="sk" style="width:30%;height:20px;margin-bottom:16px"></span>${Array.from({ length: n }, () => `<div class="sk-row" style="padding:10px 0;border-top:1px solid var(--line)"><span class="sk" style="flex:2;height:14px"></span><span class="sk" style="flex:1;height:14px"></span><span class="sk" style="flex:1;height:14px"></span></div>`).join('')}</div>`; }
+function skPainel() {
+  document.body.classList.remove('has-urna'); document.body.classList.add('is-painel');
+  $('#app').innerHTML = `<header class="mast"><div class="wrap"><span class="mast-logo"><span class="sk" style="width:40px;height:40px"></span></span>
+    <div style="flex:1"><span class="sk" style="width:220px;height:18px"></span><span class="sk" style="width:140px;height:13px;margin-top:8px"></span></div>
+    <span class="sk" style="width:90px;height:40px;border-radius:10px"></span></div></header>
+  <div class="tabsbar"><div class="wrap"><div class="tabs">${Array.from({ length: 8 }, () => `<span class="sk" style="flex:1;min-width:90px;height:38px;border-radius:999px"></span>`).join('')}</div></div></div>
+  <main class="wrap" id="tabbody" style="padding-block:24px"><div class="stack"><span class="sk" style="width:240px;height:28px"></span>${skCards(3)}${skTabela(5)}</div></main>`;
+}
 function rodapeLegal() { return `<p class="legal small muted"><a href="/termos/" target="_blank" rel="noopener">Termos de Uso</a> · <a href="/privacidade/" target="_blank" rel="noopener">Política de Privacidade</a> · CipaFlow · JL Consultoria LTDA</p>`; }
 function demoBand() { return DEMO ? `<div class="demo-band"><button class="btn" id="b-demo"><span class="hide-sm">Demonstração · </span>Painel de testes</button></div>` : ''; }
 function bindDemoBand() { const b = $('#b-demo'); if (b) b.onclick = abrirDemo; }
@@ -1997,7 +2087,9 @@ function abrirDemo() {
   });
   $$('[data-s]', el).forEach(tr => tr.onclick = async () => {
     const m = JSON.parse(tr.dataset.s); fechar();
-    try { const r = await API.equipeEntrar(m.login, m.senha); A.staff = { token: r.token, perfil: r.perfil, nome: r.nome, trocar: !!r.trocar_senha }; A.provisoria = r.trocar_senha ? m.senha : null; guardarStaff(); A.view = 'painel'; A.tab = 'acomp'; A.codigos = null; await abrirPainel(); } catch (e) { toast(e.message); }
+    try { const r = await API.equipeEntrar(m.login, m.senha);
+      if (r.segunda_etapa) { A.view = 'equipe-login'; render(); $('#s-login').value = m.login; telaCodigo(r); return; }
+      await entrouNoPainel(r, m.senha); } catch (e) { toast(e.message); }
   });
   const acao = async fn => { try { await fn(); } catch (e) { toast(e.message); } fechar(); if (A.view === 'painel') await atualizarPainel(true); else { await carregarEstado(); render(); } };
   $('#d-sim', el).onclick = () => acao(async () => { const n = D.simular(10); toast(`${n} votos simulados.`); });
@@ -2010,6 +2102,7 @@ function abrirDemo() {
    INÍCIO
    ===================================================================== */
 function render() {
+  $('#app').removeAttribute('aria-busy');
   document.body.classList.toggle('is-painel', A.view === 'painel' && !!A.painel && !(A.staff && A.staff.trocar));
   if (A.view === 'painel' && A.staff && A.staff.trocar) telaNovaSenha();
   else if (A.view === 'painel' && A.painel) renderPainel();
@@ -2030,10 +2123,12 @@ setInterval(async () => {
 (async function iniciar() {
   avisoArmazenamento();
   try { await carregarEstado(); } catch (e) {
-    $('#app').innerHTML = `<main class="wrap narrow voter"><div class="msg err">${esc(e.message)}</div></main>`; return;
+    $('#app').removeAttribute('aria-busy'); $('#app').innerHTML = `<main class="wrap narrow voter"><div class="msg err">${esc(e.message)}</div></main>`; return;
   }
+  const ml = /^#doc=([0-9a-f]{48})$/.exec(location.hash);
+  if (ml) { telaLink(ml[1]); return; }
   A.staff = lerStaff();
-  if (A.staff) { A.view = 'painel'; await abrirPainel(); return; }
+  if (A.staff) { A.view = 'painel'; skPainel(); await abrirPainel(); return; }
   if (location.hash === '#comissao') A.view = 'equipe-login';
   render();
 })();
